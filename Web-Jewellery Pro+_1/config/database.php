@@ -1,0 +1,464 @@
+<?php
+$host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ? getenv('DB_HOST') : 'localhost');
+$user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ? getenv('DB_USER') : 'root');
+$password = isset($_ENV['DB_PASSWORD']) ? $_ENV['DB_PASSWORD'] : (getenv('DB_PASSWORD') ? getenv('DB_PASSWORD') : '');
+$database = isset($_ENV['DB_DATABASE']) ? $_ENV['DB_DATABASE'] : (getenv('DB_DATABASE') ? getenv('DB_DATABASE') : 'radhe_shyam_jewellers');
+$port = isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : (getenv('DB_PORT') ? getenv('DB_PORT') : '3306');
+
+// ── Auto-create DB if it doesn't exist (first run setup) ──
+$_tmp_conn = mysqli_connect($host, $user, $password, '', $port);
+if(!$_tmp_conn) {
+    die("MySQL connection failed: " . mysqli_connect_error());
+}
+mysqli_query($_tmp_conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+mysqli_close($_tmp_conn);
+
+$conn = mysqli_connect($host, $user, $password, $database, $port);
+
+if(!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+
+// Set timezone
+date_default_timezone_set('Asia/Kolkata');
+
+// Create tables if not exist
+$create_due_history = "CREATE TABLE IF NOT EXISTS due_update_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_id INT NOT NULL,
+    previous_balance DECIMAL(10,2) NOT NULL,
+    new_balance DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL,
+    payment_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_due_history);
+
+$create_users = "CREATE TABLE IF NOT EXISTS users (
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(100) NOT NULL,
+mobile VARCHAR(15) UNIQUE NOT NULL,
+email VARCHAR(100),
+password VARCHAR(255) NOT NULL,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_users);
+
+$create_products = "CREATE TABLE IF NOT EXISTS products (
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(200) NOT NULL,
+category VARCHAR(50),
+price DECIMAL(10,2) NOT NULL,
+quantity INT DEFAULT 0,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_products);
+
+// Ensure required columns exist on products table
+$products_cols = [
+    'serial_no' => "VARCHAR(50) NULL",
+    'weight'    => "VARCHAR(20) NULL",
+    'item_name' => "VARCHAR(255) DEFAULT ''",
+    'huid_code' => "VARCHAR(100) NULL",
+];
+
+foreach ($products_cols as $col_name => $col_definition) {
+    $chk = mysqli_query($conn, "SHOW COLUMNS FROM products LIKE '$col_name'");
+    if ($chk && mysqli_num_rows($chk) == 0) {
+        // If adding serial_no, we can also add a unique constraint if needed
+        $unique = ($col_name === 'serial_no') ? " UNIQUE" : "";
+        mysqli_query($conn, "ALTER TABLE products ADD COLUMN $col_name $col_definition$unique");
+    }
+}
+
+
+$create_customers = "CREATE TABLE IF NOT EXISTS customers (
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(100) NOT NULL,
+mobile VARCHAR(15) UNIQUE NOT NULL,
+email VARCHAR(100),
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_customers);
+
+// Ensure required columns exist on customers table
+$customers_cols = [
+    'address'    => "TEXT NULL",
+    'email'      => "VARCHAR(255) NULL",
+    'gst_number' => "VARCHAR(20) DEFAULT ''",
+];
+
+foreach ($customers_cols as $col_name => $col_definition) {
+    $chk = mysqli_query($conn, "SHOW COLUMNS FROM customers LIKE '$col_name'");
+    if ($chk && mysqli_num_rows($chk) == 0) {
+        mysqli_query($conn, "ALTER TABLE customers ADD COLUMN $col_name $col_definition");
+    }
+}
+
+
+$create_sanchari_customers = "CREATE TABLE IF NOT EXISTS sanchari_customers (
+id INT AUTO_INCREMENT PRIMARY KEY,
+customer_id VARCHAR(20) UNIQUE NOT NULL,
+book_id VARCHAR(20) UNIQUE NOT NULL,
+customer_name VARCHAR(100) NOT NULL,
+mobile VARCHAR(15) NOT NULL,
+email VARCHAR(100),
+address TEXT,
+joining_date DATE NOT NULL,
+monthly_amount DECIMAL(10,2) NOT NULL,
+scheme_duration VARCHAR(20) NOT NULL,
+status VARCHAR(20) NOT NULL DEFAULT 'Active',
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_sanchari_customers);
+
+$create_sanchari_payments = "CREATE TABLE IF NOT EXISTS sanchari_payments (
+id INT AUTO_INCREMENT PRIMARY KEY,
+payment_id VARCHAR(20) UNIQUE NOT NULL,
+customer_id VARCHAR(20) NOT NULL,
+book_id VARCHAR(20) NOT NULL,
+customer_name VARCHAR(100) NOT NULL,
+installment_no INT NOT NULL,
+payment_date DATE NOT NULL,
+amount DECIMAL(10,2) NOT NULL,
+gold_rate DECIMAL(12,2) NOT NULL DEFAULT 0,
+weight DECIMAL(10,3) NOT NULL DEFAULT 0,
+payment_mode VARCHAR(30) NOT NULL,
+remarks TEXT,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_sanchari_payments);
+
+$create_sanchari_redemptions = "CREATE TABLE IF NOT EXISTS sanchari_redemptions (
+id INT AUTO_INCREMENT PRIMARY KEY,
+redemption_id VARCHAR(20) UNIQUE NOT NULL,
+customer_id VARCHAR(20) NOT NULL,
+book_id VARCHAR(20) NOT NULL,
+purchase_date DATE NOT NULL,
+item_name VARCHAR(150) NOT NULL,
+gross_weight DECIMAL(10,3) DEFAULT 0,
+net_weight DECIMAL(10,3) DEFAULT 0,
+making_charge DECIMAL(10,2) DEFAULT 0,
+gst DECIMAL(10,2) DEFAULT 0,
+jewellery_amount DECIMAL(10,2) DEFAULT 0,
+adjusted_amount DECIMAL(10,2) DEFAULT 0,
+balance_amount DECIMAL(10,2) DEFAULT 0,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_sanchari_redemptions);
+
+$create_invoices = "CREATE TABLE IF NOT EXISTS invoices (
+id INT AUTO_INCREMENT PRIMARY KEY,
+invoice_no VARCHAR(50) UNIQUE NOT NULL,
+customer_name VARCHAR(100) NOT NULL,
+customer_mobile VARCHAR(15) NOT NULL,
+gst_type ENUM('gst', 'non_gst') DEFAULT 'non_gst',
+subtotal DECIMAL(10,2) DEFAULT 0,
+gst_amount DECIMAL(10,2) DEFAULT 0,
+total_amount DECIMAL(10,2) DEFAULT 0,
+created_by INT,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_invoices);
+
+// Ensure all required columns exist on invoices table
+$columns_to_ensure = [
+    'customer_id'      => "INT NULL",
+    'customer_address' => "TEXT NULL",
+    'customer_gstin'   => "VARCHAR(50) NULL",
+    'discount'         => "DECIMAL(10,2) DEFAULT 0",
+    'payment_status'   => "VARCHAR(20) DEFAULT 'pending'",
+    'payment_method'   => "VARCHAR(20) DEFAULT 'Cash'",
+    'paid_amount'      => "DECIMAL(10,2) DEFAULT 0",
+    'balance_amount'   => "DECIMAL(10,2) DEFAULT 0",
+    'huid_code'        => "VARCHAR(100) NULL",
+    'cash_paid'        => "DECIMAL(10,2) DEFAULT 0",
+    'upi_paid'         => "DECIMAL(10,2) DEFAULT 0",
+    'account_paid'     => "DECIMAL(10,2) DEFAULT 0",
+    'due_date'         => "DATE NULL",
+    'reminder_sent'    => "TINYINT(1) DEFAULT 0",
+    'old_gold_amount'   => "DECIMAL(10,2) DEFAULT 0",
+    'pdf_file'         => "LONGBLOB NULL",
+    'pdf_file_name'    => "VARCHAR(255) NULL",
+];
+
+foreach ($columns_to_ensure as $col_name => $col_definition) {
+    $chk = mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE '$col_name'");
+    if ($chk && mysqli_num_rows($chk) == 0) {
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN $col_name $col_definition");
+    }
+}
+
+
+$create_invoice_items = "CREATE TABLE IF NOT EXISTS invoice_items (
+id INT AUTO_INCREMENT PRIMARY KEY,
+invoice_id INT,
+product_id INT,
+quantity INT,
+price DECIMAL(10,2),
+total DECIMAL(10,2)
+)";
+mysqli_query($conn, $create_invoice_items);
+
+// Ensure required columns exist on invoice_items table
+$invoice_items_cols = [
+    'product_name'  => "VARCHAR(200) NULL",
+    'serial_no'     => "VARCHAR(100) NULL",
+    'hsn_code'      => "VARCHAR(50) NULL",
+    'making_charge' => "DECIMAL(10,2) DEFAULT 0",
+    'making_charge_pct' => "DECIMAL(5,2) DEFAULT 0",
+    'hallmark'      => "DECIMAL(10,2) DEFAULT 0",
+    'discount'      => "DECIMAL(10,2) DEFAULT 0",
+    'huid_code'     => "VARCHAR(100) NULL",
+    'unit'          => "VARCHAR(10) DEFAULT 'g'",
+];
+
+foreach ($invoice_items_cols as $col_name => $col_definition) {
+    $chk = mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE '$col_name'");
+    if ($chk && mysqli_num_rows($chk) == 0) {
+        mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN $col_name $col_definition");
+    }
+}
+
+// Modify quantity column in invoice_items if it is not DECIMAL
+$chk_qty = mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'quantity'");
+if ($chk_qty && mysqli_num_rows($chk_qty) > 0) {
+    $row = mysqli_fetch_assoc($chk_qty);
+    if (stripos($row['Type'] ?? '', 'decimal') === false) {
+        mysqli_query($conn, "ALTER TABLE invoice_items MODIFY COLUMN quantity DECIMAL(10,3) NULL");
+    }
+}
+
+
+// Insert default admin user if empty
+$check_admin = mysqli_query($conn, "SELECT id FROM users WHERE mobile = '9876543210'");
+if(mysqli_num_rows($check_admin) == 0) {
+$hash = password_hash('123456', PASSWORD_DEFAULT);
+mysqli_query($conn, "INSERT IGNORE INTO users (name, mobile, email, password) VALUES ('Admin User', '9876543210', 'admin@radheshyamjewellers.com', '$hash')");
+}
+
+// Insert Radhe Shyam main admin account (Subhapatra169@gmail.com / 123456)
+$check_rs_admin = mysqli_query($conn, "SELECT id FROM users WHERE mobile = '8617536679' OR email = 'Subhapatra169@gmail.com'");
+if($check_rs_admin && mysqli_num_rows($check_rs_admin) == 0) {
+    $hash = password_hash('123456', PASSWORD_DEFAULT);
+    mysqli_query($conn, "INSERT IGNORE INTO users (name, mobile, email, password) VALUES ('Radhe Shyam Admin', '8617536679', 'Subhapatra169@gmail.com', '$hash')");
+}
+
+// Create purchase_entries table if not exists
+$create_purchase_entries = "CREATE TABLE IF NOT EXISTS purchase_entries (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    purchase_no     VARCHAR(50)  NOT NULL UNIQUE,
+    purchase_date   DATE         NOT NULL,
+    invoice_no      VARCHAR(100) NOT NULL,
+    invoice_date    DATE         NOT NULL,
+    ref_no          VARCHAR(100),
+    ref_date        DATE,
+    payment_mode    VARCHAR(50)  DEFAULT 'NEFT/RTGS',
+    supplier_name   VARCHAR(200) NOT NULL,
+    supplier_addr   VARCHAR(500),
+    supplier_gstin  VARCHAR(20),
+    supplier_pan    VARCHAR(20),
+    supplier_state  VARCHAR(100),
+    supplier_state_code VARCHAR(5),
+    supplier_mobile VARCHAR(20),
+    supplier_email  VARCHAR(100),
+    buyer_name      VARCHAR(200) DEFAULT 'RADHE SHYAM JEWELLERS',
+    buyer_addr      VARCHAR(500),
+    buyer_gstin     VARCHAR(20),
+    buyer_pan       VARCHAR(20),
+    material_type   ENUM('Gold','Silver','Diamond','Platinum') NOT NULL,
+    description     VARCHAR(300),
+    huid_code       VARCHAR(100),
+    hsn_sac         VARCHAR(20),
+    qty             DECIMAL(12,4) NOT NULL,
+    unit            VARCHAR(10)  DEFAULT 'gm',
+    rate_per_unit   DECIMAL(12,4) NOT NULL,
+    tax_type        ENUM('CGST_SGST','IGST') DEFAULT 'CGST_SGST',
+    cgst_pct        DECIMAL(5,2) DEFAULT 1.50,
+    sgst_pct        DECIMAL(5,2) DEFAULT 1.50,
+    igst_pct        DECIMAL(5,2) DEFAULT 3.00,
+    subtotal        DECIMAL(14,2),
+    cgst_amt        DECIMAL(14,2) DEFAULT 0,
+    sgst_amt        DECIMAL(14,2) DEFAULT 0,
+    igst_amt        DECIMAL(14,2) DEFAULT 0,
+    gst_total       DECIMAL(14,2),
+    total_amount    DECIMAL(14,2),
+    amount_words    VARCHAR(500),
+    notes           TEXT,
+    created_by      INT,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_purchase_entries);
+
+// Ensure HUID column exists for purchase_entries
+$chk_huid = mysqli_query($conn, "SHOW COLUMNS FROM purchase_entries LIKE 'huid_code'");
+if ($chk_huid && mysqli_num_rows($chk_huid) == 0) {
+    mysqli_query($conn, "ALTER TABLE purchase_entries ADD COLUMN huid_code VARCHAR(100) NULL AFTER description");
+}
+
+// Create stock_metal table if not exists
+$create_stock_metal = "CREATE TABLE IF NOT EXISTS stock_metal (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    material_type ENUM('Gold','Silver','Diamond','Platinum') NOT NULL,
+    unit          VARCHAR(10) DEFAULT 'gm',
+    qty_available DECIMAL(14,4) DEFAULT 0,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_material (material_type)
+)";
+mysqli_query($conn, $create_stock_metal);
+
+// Seed stock metal rows if empty
+foreach (['Gold', 'Silver', 'Diamond', 'Platinum'] as $m) {
+    mysqli_query($conn, "INSERT IGNORE INTO stock_metal (material_type, qty_available) VALUES ('$m', 0)");
+}
+
+
+// Income table
+$create_income = "CREATE TABLE IF NOT EXISTS income (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    income_date DATE NOT NULL,
+    source VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    description TEXT,
+    payment_method ENUM('cash', 'card', 'upi', 'bank') DEFAULT 'cash',
+    invoice_no VARCHAR(50),
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_date (income_date),
+    INDEX idx_category (category)
+)";
+mysqli_query($conn, $create_income);
+
+// Expenses table
+$create_expenses = "CREATE TABLE IF NOT EXISTS expenses (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    expense_date DATE NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    description TEXT,
+    payment_method ENUM('cash', 'card', 'upi', 'bank') DEFAULT 'cash',
+    bill_no VARCHAR(50),
+    vendor_name VARCHAR(100),
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_date (expense_date),
+    INDEX idx_category (category)
+)";
+mysqli_query($conn, $create_expenses);
+
+// Income Categories table
+$create_income_categories = "CREATE TABLE IF NOT EXISTS income_categories (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(50) UNIQUE NOT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active'
+)";
+mysqli_query($conn, $create_income_categories);
+
+// Expense Categories table
+$create_expense_categories = "CREATE TABLE IF NOT EXISTS expense_categories (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(50) UNIQUE NOT NULL,
+    status ENUM('active', 'inactive') DEFAULT 'active'
+)";
+mysqli_query($conn, $create_expense_categories);
+
+// Insert default income categories
+mysqli_query($conn, "INSERT IGNORE INTO income_categories (category_name) VALUES 
+('Sales Income'), ('Interest Income'), ('Rental Income'), ('Commission Income'), ('Other Income')");
+
+// Insert default expense categories
+mysqli_query($conn, "INSERT IGNORE INTO expense_categories (category_name) VALUES 
+('Purchase'), ('Rent'), ('Electricity Bill'), ('Salary'), ('Marketing'), ('Maintenance'), ('Tax Payment'), ('Transportation'), ('Other Expenses')");
+
+// WhatsApp Settings Table
+$create_whatsapp_settings = "CREATE TABLE IF NOT EXISTS whatsapp_settings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    api_type VARCHAR(50) DEFAULT 'greenapi',
+    api_url VARCHAR(255),
+    api_token VARCHAR(255),
+    instance_id VARCHAR(100),
+    phone_number_id VARCHAR(100),
+    access_token TEXT,
+    status VARCHAR(20) DEFAULT 'inactive',
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_whatsapp_settings);
+
+// WhatsApp Message Templates Table
+$create_whatsapp_templates = "CREATE TABLE IF NOT EXISTS whatsapp_templates (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    template_name VARCHAR(100) NOT NULL,
+    template_type VARCHAR(50) DEFAULT 'custom',
+    message_content TEXT NOT NULL,
+    variables TEXT,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_whatsapp_templates);
+
+// WhatsApp Message Log Table
+$create_whatsapp_logs = "CREATE TABLE IF NOT EXISTS whatsapp_logs (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    recipient_number VARCHAR(20) NOT NULL,
+    recipient_name VARCHAR(100),
+    message_type VARCHAR(50),
+    message_content TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    api_response TEXT,
+    sent_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_recipient (recipient_number),
+    INDEX idx_status (status)
+)";
+mysqli_query($conn, $create_whatsapp_logs);
+
+// Auto Reminder Settings Table
+$create_reminder_settings = "CREATE TABLE IF NOT EXISTS reminder_settings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    reminder_type VARCHAR(50) DEFAULT 'due',
+    days_before INT DEFAULT 0,
+    reminder_time TIME DEFAULT '10:00:00',
+    is_active INT DEFAULT 1,
+    template_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+mysqli_query($conn, $create_reminder_settings);
+
+// OTP logins table
+$create_otp_logins = "CREATE TABLE IF NOT EXISTS otp_logins (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(100) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_otp (otp)
+)";
+mysqli_query($conn, $create_otp_logins);
+
+// Password Resets table
+$create_password_resets = "CREATE TABLE IF NOT EXISTS password_resets (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(100) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_otp (otp)
+)";
+mysqli_query($conn, $create_password_resets);
+if(isset($_SESSION['user_id'])) {
+$check = mysqli_query($conn, "SELECT id FROM users WHERE id = '{$_SESSION['user_id']}'");
+if(mysqli_num_rows($check) == 0) {
+$admin = mysqli_query($conn, "SELECT id FROM users WHERE mobile = '9876543210'");
+$admin_row = mysqli_fetch_assoc($admin);
+$_SESSION['user_id'] = $admin_row['id'];
+$_SESSION['user_name'] = 'Admin User';
+$_SESSION['user_mobile'] = '9876543210';
+}
+}
+?>
+
