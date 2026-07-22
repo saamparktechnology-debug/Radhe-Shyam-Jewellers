@@ -84,17 +84,21 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_users);
 
-// Auto-seed default admin users if empty
-$chk_u = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM users");
-if ($chk_u) {
-    $row_u = mysqli_fetch_assoc($chk_u);
-    if (($row_u['cnt'] ?? 0) == 0) {
-        $p1 = password_hash('radhe#123', PASSWORD_BCRYPT);
-        $p2 = password_hash('123456', PASSWORD_BCRYPT);
-        mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES 
-            ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$p1'),
-            ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$p2')");
-    }
+// Always ensure admin users exist with exact password hashes
+$pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
+$chk_subha = mysqli_query($conn, "SELECT id FROM users WHERE email = 'subhapatra169@gmail.com'");
+if ($chk_subha && mysqli_num_rows($chk_subha) > 0) {
+    mysqli_query($conn, "UPDATE users SET password = '$pass_hash1' WHERE email = 'subhapatra169@gmail.com'");
+} else {
+    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1')");
+}
+
+$pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
+$chk_supriya = mysqli_query($conn, "SELECT id FROM users WHERE email = 'hiisupriya@gmail.com'");
+if ($chk_supriya && mysqli_num_rows($chk_supriya) > 0) {
+    mysqli_query($conn, "UPDATE users SET password = '$pass_hash2' WHERE email = 'hiisupriya@gmail.com'");
+} else {
+    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2')");
 }
 
 $create_products = "CREATE TABLE IF NOT EXISTS products (
