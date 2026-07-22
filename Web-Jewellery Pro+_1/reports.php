@@ -48,7 +48,13 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_delete_invoice'
         mysqli_query($conn, "SET FOREIGN_KEY_CHECKS = 1");
         
         if ($success) {
-            header("Location: reports.php?reset_msg=" . urlencode($reset_success));
+            $redirect_url = 'reports.php?reset_msg=' . urlencode($reset_success);
+            echo '<!DOCTYPE html><html><head>';
+            echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirect_url) . '">';
+            echo '<script>window.location.replace(' . json_encode($redirect_url) . ');<\/script>';
+            echo '</head><body style="background:#fffbf4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;">';
+            echo '<p style="color:#7a4e0a;font-weight:600;">✅ Done! Redirecting...</p>';
+            echo '</body></html>';
             exit();
         }
     }
@@ -246,7 +252,13 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_reset_report'])
         
         // If successful, reload to refresh stats/reports
         if ($success) {
-            header("Location: reports.php?reset_msg=" . urlencode($reset_success));
+            $redirect_url = 'reports.php?reset_msg=' . urlencode($reset_success);
+            echo '<!DOCTYPE html><html><head>';
+            echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirect_url) . '">';
+            echo '<script>window.location.replace(' . json_encode($redirect_url) . ');<\/script>';
+            echo '</head><body style="background:#fffbf4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;">';
+            echo '<p style="color:#7a4e0a;font-weight:600;">✅ Done! Redirecting...</p>';
+            echo '</body></html>';
             exit();
         }
     }
@@ -1077,12 +1089,11 @@ $logo_paths = ['assets/images/radhe_shyam_logo.jpg','images/radhe_shyam_logo.jpg
                         $cgst_amt  = round($gst_amt/2, 2);
                         $sgst_amt  = round($gst_amt/2, 2);
                         $gstin     = trim($bill['customer_gstin'] ?? '');
-                        $status_badge = match($bill['payment_status']) {
-                            'paid'   => '<span class="badge-paid">✅ Paid</span>',
-                            'part'   => '<span class="badge-part">⏳ Part</span>',
-                            'unpaid' => '<span class="badge-unpaid">❌ Unpaid</span>',
-                            default  => htmlspecialchars($bill['payment_status']),
-                        };
+                        $ps = $bill['payment_status'];
+                        if ($ps === 'paid')        $status_badge = '<span class="badge-paid">✅ Paid</span>';
+                        elseif ($ps === 'part')    $status_badge = '<span class="badge-part">⏳ Part</span>';
+                        elseif ($ps === 'unpaid')  $status_badge = '<span class="badge-unpaid">❌ Unpaid</span>';
+                        else                       $status_badge = htmlspecialchars($ps);
                     ?>
                     <tr>
                         <td style="color:#7a4e0a;"><?php echo $i+1; ?></td>

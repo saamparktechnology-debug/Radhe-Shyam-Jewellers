@@ -391,7 +391,10 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                     <div class="header-right">
                         <div class="tax-invoice-tag"><?php echo $is_gst ? 'TAX INVOICE' : 'INVOICE'; ?></div>
                         <span class="payment-status-pill <?php echo 'pill-'.$inv['payment_status']; ?>">
-                            <?php echo match($inv['payment_status']){'paid'=>'✓ PAID','part'=>'PART PAID','unpaid'=>'UNPAID',default=>strtoupper($inv['payment_status'])}; ?>
+                            <?php
+                            $ps = $inv['payment_status'];
+                            echo ($ps==='paid') ? '✓ PAID' : (($ps==='part') ? 'PART PAID' : (($ps==='unpaid') ? 'UNPAID' : strtoupper($ps)));
+                            ?>
                         </span>
                     </div>
                 </div>
