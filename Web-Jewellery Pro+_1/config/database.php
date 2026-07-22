@@ -20,13 +20,13 @@ if (file_exists($env_file)) {
 
 $host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ? getenv('DB_HOST') : '127.0.0.1');
 $user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ? getenv('DB_USER') : 'root');
-$password = isset($_ENV['DB_PASSWORD']) ? $_ENV['DB_PASSWORD'] : (getenv('DB_PASSWORD') ? getenv('DB_PASSWORD') : '');
+$password = isset($_ENV['DB_PASSWORD']) ? $_ENV['DB_PASSWORD'] : (getenv('DB_PASSWORD') ? getenv('DB_PASSWORD') : 'RootPass123');
 $database = isset($_ENV['DB_DATABASE']) ? $_ENV['DB_DATABASE'] : (getenv('DB_DATABASE') ? getenv('DB_DATABASE') : 'radhe_shyam_jewellers');
 $port = isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : (getenv('DB_PORT') ? getenv('DB_PORT') : '3306');
 
 // ── Smart connection with password fallbacks ──
 $conn = false;
-$passwords_to_try = array_unique([$password, '', 'root', 'radhe#123', '123456']);
+$passwords_to_try = array_unique([$password, 'RootPass123', '', 'root', 'radhe#123', '123456']);
 $hosts_to_try     = array_unique([$host, '127.0.0.1', 'localhost']);
 
 foreach ($hosts_to_try as $h) {
