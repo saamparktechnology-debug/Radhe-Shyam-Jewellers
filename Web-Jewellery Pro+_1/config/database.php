@@ -84,6 +84,19 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_users);
 
+// Auto-seed default admin users if empty
+$chk_u = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM users");
+if ($chk_u) {
+    $row_u = mysqli_fetch_assoc($chk_u);
+    if (($row_u['cnt'] ?? 0) == 0) {
+        $p1 = password_hash('radhe#123', PASSWORD_BCRYPT);
+        $p2 = password_hash('123456', PASSWORD_BCRYPT);
+        mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES 
+            ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$p1'),
+            ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$p2')");
+    }
+}
+
 $create_products = "CREATE TABLE IF NOT EXISTS products (
 id INT AUTO_INCREMENT PRIMARY KEY,
 name VARCHAR(200) NOT NULL,
