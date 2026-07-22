@@ -947,40 +947,50 @@ if($is_logged_in) {
 
 <!-- ========== TOP NAVBAR ========== -->
 <nav class="nav-gold shadow-lg sticky top-0 z-50" style="<?php echo $is_logged_in ? 'margin-left:240px;' : ''; ?>">
-    <div class="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+    <div class="container mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
         <div class="flex justify-between items-center">
 
-            <!-- Left: Logo + Title -->
-            <!-- <div class="flex items-center space-x-3">
+            <!-- Left: Logo + Shop Title (Always visible) -->
+            <div class="flex items-center space-x-3">
                 <?php
                 $logo_found = false;
                 foreach($logo_paths as $path) {
                     if(file_exists($path)) {
-                        echo '<img src="'.$path.'" alt="Logo" style="height:44px;width:44px;object-fit:cover;border-radius:50%;border:2px solid rgba(255,255,255,0.7);box-shadow:0 0 8px rgba(214,139,22,0.5);">';
+                        echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:40px;width:40px;object-fit:contain;border-radius:50%;background:rgba(255,255,255,0.15);padding:2px;border:1.5px solid #ffd700;box-shadow:0 0 10px rgba(255,215,0,0.4);">';
                         $logo_found = true; break;
                     }
                 }
-                if(!$logo_found) echo '<i class="fas fa-crown" style="color:#fff;font-size:24px;"></i>';
+                if(!$logo_found) echo '<i class="fas fa-gem" style="color:#ffd700;font-size:24px;"></i>';
                 ?>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-bold" style="color:#fff;">RADHE SHYAM JEWELLERS</h1>
-                    <p class="text-xs hidden sm:block" style="color:rgba(255,255,255,0.75);">Premium Jewellery Management</p>
+                    <h1 class="text-sm sm:text-lg font-bold tracking-wide" style="color:#fff;font-family:\'Playfair Display\',serif;line-height:1.2;margin:0;">RADHE SHYAM JEWELLERS</h1>
+                    <p class="text-[10px] hidden sm:block" style="color:rgba(255,255,255,0.75);margin:0;letter-spacing:0.5px;">Premium Jewellery Management</p>
                 </div>
-            </div> -->
+            </div>
 
-            <!-- Right: Theme toggle + user + burger -->
-            <!-- Right Side -->
-<div class="ml-auto flex items-center gap-4">
-    <?php if($is_logged_in): ?>
-    <span class="text-sm font-medium text-white flex items-center gap-2">
-        <i class="fas fa-user"></i>
-        <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-    </span>
-    <a href="logout.php" class="btn-jewel">Logout</a>
-    <?php else: ?>
-    <a href="login.php" class="btn-jewel">Login</a>
-    <?php endif; ?>
-</div>
+            <!-- Right: User info + Hamburger Menu (on mobile) -->
+            <div class="ml-auto flex items-center gap-3 sm:gap-4">
+                <?php if($is_logged_in): ?>
+                <span class="text-xs sm:text-sm font-medium text-white hidden md:flex items-center gap-2">
+                    <i class="fas fa-user-circle" style="color:#ffd700;"></i>
+                    <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                </span>
+                <a href="logout.php" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 hidden sm:inline-flex items-center">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </a>
+
+                <!-- Mobile Hamburger Menu Button (Always on right on mobile) -->
+                <div class="mobile-burger" style="display:none;">
+                    <div class="burger-menu" id="burgerMenu" onclick="toggleSidebar()">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <?php else: ?>
+                <a href="login.php" class="btn-jewel" style="padding: 6px 18px; font-size: 12px;">Login</a>
+                <?php endif; ?>
+            </div>
 
         </div>
     </div>

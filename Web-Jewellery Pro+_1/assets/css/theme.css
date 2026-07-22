@@ -34,13 +34,22 @@
 * { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
 h1,h2,h3,.gold-font { font-family: 'Playfair Display', serif; }
 
+html {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
 body {
   background: var(--cream-bg) !important;
   color: var(--text-main) !important;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
   margin: 0;
   padding: 0;
+  position: relative;
 }
 
 /* ========== HIGH CONTRAST TITLES ========== */
@@ -395,6 +404,13 @@ label {
 
 /* ========== COMPREHENSIVE MOBILE RESPONSIVENESS ========== */
 @media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    position: relative !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
   .sidebar {
     transform: translateX(-100%) !important;
     box-shadow: none !important;
@@ -407,6 +423,9 @@ label {
   .page-wrapper, nav.nav-gold {
     margin-left: 0 !important;
     width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
 
   .mobile-burger {
@@ -417,9 +436,11 @@ label {
   .container {
     padding-left: 12px !important;
     padding-right: 12px !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
   }
 
-  .stock-grid, .grid {
+  .stock-grid {
     grid-template-columns: 1fr !important;
   }
 
@@ -467,12 +488,13 @@ label {
   }
 }
 
-/* Page wrapper animation */
+/* Page wrapper animation — vertical fade without horizontal translation */
 .page-wrapper {
   animation: slideInFromRightGlobal 0.3s ease-out forwards;
+  max-width: 100%;
 }
 
 @keyframes slideInFromRightGlobal {
-  from { transform: translateX(18px); opacity: 0.95; }
-  to { transform: none; opacity: 1; }
+  from { transform: translateY(6px); opacity: 0.95; }
+  to { transform: translateY(0); opacity: 1; }
 }
