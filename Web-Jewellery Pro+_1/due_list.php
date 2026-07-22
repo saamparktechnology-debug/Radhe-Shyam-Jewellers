@@ -51,12 +51,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recei
     $payment_date = date('Y-m-d');
     $payment_status = ($new_balance <= 0) ? 'paid' : 'part';
 
+    $next_due_date = trim($_POST['next_due_date'] ?? '');
+    $due_date_sql  = "";
+    if ($new_balance <= 0) {
+        $due_date_sql = ", due_date = NULL";
+    } elseif (!empty($next_due_date)) {
+        $safe_next_due = mysqli_real_escape_string($conn, $next_due_date);
+        $due_date_sql  = ", due_date = '$safe_next_due'";
+    }
+
     // Insert history
     mysqli_query($conn, "INSERT INTO due_update_history (invoice_id, previous_balance, new_balance, amount_paid, payment_date, payment_mode) VALUES ($id, $previous_balance, $new_balance, $amount_paid, '$payment_date', '$mode')");
     $history_id = mysqli_insert_id($conn);
 
     // Update invoice
-    $upd = mysqli_query($conn, "UPDATE invoices SET balance_amount = $new_balance, paid_amount = $new_paid, payment_status = '$payment_status' WHERE id = $id");
+    $upd = mysqli_query($conn, "UPDATE invoices SET balance_amount = $new_balance, paid_amount = $new_paid, payment_status = '$payment_status'$due_date_sql WHERE id = $id");
 
     echo json_encode([
         'success'          => (bool)$upd,
@@ -65,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recei
         'invoice_no'       => $invoice_no_val,
         'previous_balance' => $previous_balance,
         'new_balance'      => $new_balance,
+        'next_due_date'    => $next_due_date,
         'history_id'       => $history_id,
         'is_fully_paid'    => ($new_balance <= 0)
     ]);
@@ -719,9 +729,9 @@ nav.nav-gold { background: linear-gradient(135deg, #011921, #03373b) !important;
 
         <!-- Logo -->
                 <div style="position:relative;width:120px;height:120px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
-            <div style="position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(214,139,22,0.5);animation:haloPulse 1.5s ease-in-out infinite;"></div>
-            <div style="position:absolute;inset:-24px;border-radius:50%;border:1px solid rgba(214,139,22,0.25);animation:haloPulse 1.5s ease-in-out infinite 0.5s;"></div>
-            <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #d68b16;box-shadow:0 0 28px rgba(214,139,22,0.8);background:#1a0a00;animation:gemGlowPulse 1.5s ease-in-out infinite;">
+            
+            
+            <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
                 <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
@@ -812,7 +822,7 @@ function closeSidebar() {
         $logo_found = false;
         foreach($logo_paths as $path) {
             if(file_exists($path)) {
-                echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #d68b16;display:inline-block;margin-right:8px;">';
+                echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:38px;width:auto;max-width:44px;object-fit:contain;display:inline-block;margin-right:8px;">';
                 $logo_found = true; break;
             }
         }
@@ -879,7 +889,7 @@ function closeSidebar() {
                 $logo_found = false;
                 foreach($logo_paths as $path) {
                     if(file_exists($path)) {
-                        echo '<img src="'.$path.'" alt="Logo" style="height:44px;width:44px;object-fit:cover;border-radius:50%;border:2px solid rgba(255,255,255,0.7);box-shadow:0 0 8px rgba(214,139,22,0.5);">';
+                        echo '<img src="'.$path.'" alt="Logo" style="height:40px;width:auto;max-width:44px;object-fit:contain;display:inline-block;">';
                         $logo_found = true; break;
                     }
                 }
@@ -1015,7 +1025,7 @@ function closeSidebar() {
                 <div class="action-grid" style="grid-template-columns:1fr 1fr;">
                     <!-- 1. Receive Payment -->
                     <button type="button" class="action-btn action-btn-receive"
-                            onclick="openReceiveModal(<?php echo intval($r['id']); ?>, '<?php echo htmlspecialchars(addslashes($r['invoice_no'])); ?>', '<?php echo htmlspecialchars(addslashes($r['customer_name'])); ?>', <?php echo floatval($r['total_amount']); ?>, <?php echo floatval($r['balance_amount']); ?>)">
+                            onclick="openReceiveModal(<?php echo intval($r['id']); ?>, '<?php echo htmlspecialchars(addslashes($r['invoice_no'])); ?>', '<?php echo htmlspecialchars(addslashes($r['customer_name'])); ?>', <?php echo floatval($r['total_amount']); ?>, <?php echo floatval($r['balance_amount']); ?>, '<?php echo htmlspecialchars(addslashes($r['due_date'] ?? '')); ?>')">
                         <i class="fas fa-hand-holding-usd"></i> Receive
                     </button>
 
@@ -1162,7 +1172,7 @@ function closeHistoryModal() {
 }
 
 /* ── Receive Modal JS ── */
-function openReceiveModal(id, invoiceNo, customerName, totalAmt, currentDue) {
+function openReceiveModal(id, invoiceNo, customerName, totalAmt, currentDue, currentDueDate) {
     document.getElementById('rcvInvoiceId').value = id;
     document.getElementById('rcvRawDue').value = currentDue;
     document.getElementById('rcvCustomerName').textContent = customerName;
@@ -1172,6 +1182,7 @@ function openReceiveModal(id, invoiceNo, customerName, totalAmt, currentDue) {
     
     const input = document.getElementById('rcvAmountInput');
     input.value = currentDue;
+    document.getElementById('rcvNextDueDate').value = currentDueDate || '';
     calcReceivePreview();
     
     selectRcvMode('Cash');
@@ -1220,9 +1231,10 @@ function closeReceiveModal() {
 }
 
 function submitReceivePayment() {
-    const id     = document.getElementById('rcvInvoiceId').value;
-    const amt    = parseFloat(document.getElementById('rcvAmountInput').value) || 0;
-    const rawDue = parseFloat(document.getElementById('rcvRawDue').value) || 0;
+    const id          = document.getElementById('rcvInvoiceId').value;
+    const amt         = parseFloat(document.getElementById('rcvAmountInput').value) || 0;
+    const rawDue      = parseFloat(document.getElementById('rcvRawDue').value) || 0;
+    const nextDueDate = document.getElementById('rcvNextDueDate').value || '';
     
     const radios = document.getElementsByName('rcv_mode');
     let mode = 'Cash';
@@ -1239,6 +1251,7 @@ function submitReceivePayment() {
     formData.append('id', id);
     formData.append('amount_paid', amt);
     formData.append('payment_mode', mode);
+    formData.append('next_due_date', nextDueDate);
 
     fetch('due_list.php', { method: 'POST', body: formData })
     .then(r => r.json())
@@ -1247,10 +1260,11 @@ function submitReceivePayment() {
             closeReceiveModal();
             showToast('✅ Payment received (₹' + amt.toFixed(2) + ' ' + mode + ')!');
             
-            // Open printable invoice / receipt PDF
-            window.open('view_pdf.php?id=' + id + '&history_id=' + res.history_id, '_blank');
+            // Open printable invoice / payment receipt PDF (uses invoice_no to avoid "Invoice number missing" error)
+            var printUrl = 'view_pdf.php?invoice_no=' + encodeURIComponent(res.invoice_no) + '&receipt=1&history_id=' + res.history_id;
+            window.open(printUrl, '_blank');
             
-            // Update table DOM - due amount display (read-only)
+            // Update table DOM - due amount & next due date
             const rowDisplay = document.querySelector('.due-amount-input[data-id="' + id + '"]');
             if (rowDisplay) {
                 if (res.is_fully_paid) {
@@ -1263,6 +1277,13 @@ function submitReceivePayment() {
                 } else {
                     rowDisplay.textContent = '₹' + parseFloat(res.new_balance).toFixed(2);
                     rowDisplay.dataset.balance = res.new_balance;
+                    
+                    // Update due date input in table row
+                    const rowDateInput = rowDisplay.closest('tr').querySelector('.due-date-input');
+                    if (rowDateInput && res.next_due_date) {
+                        rowDateInput.value = res.next_due_date;
+                    }
+
                     // Flash red to show update
                     rowDisplay.style.transform = 'scale(1.15)';
                     rowDisplay.style.transition = 'transform 0.3s';
@@ -1334,6 +1355,12 @@ function submitReceivePayment() {
                         <span style="font-size:12px;font-weight:700;color:#800020;">📲 UPI / Digital</span>
                     </label>
                 </div>
+            </div>
+
+            <!-- Next Due Date Option -->
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#7a4e0a;display:block;margin-bottom:4px;">Next Due Date (For Remaining Balance)</label>
+                <input type="date" id="rcvNextDueDate" class="inline-input" style="font-size:13px;padding:8px;border-color:#d68b16;">
             </div>
 
             <!-- Remaining Pending Due Preview -->

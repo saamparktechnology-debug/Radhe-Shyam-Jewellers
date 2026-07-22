@@ -118,12 +118,13 @@ body {
 }
 
 .sidebar-logo img {
-  width: 42px;
-  height: 42px;
-  object-fit: cover;
-  border-radius: 50%;
-  border: 2.5px solid #ffd700 !important;
-  box-shadow: 0 0 16px rgba(255, 215, 0, 0.7), inset 0 0 8px rgba(255, 255, 255, 0.5) !important;
+  width: 44px;
+  height: 44px;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
   flex-shrink: 0;
 }
 

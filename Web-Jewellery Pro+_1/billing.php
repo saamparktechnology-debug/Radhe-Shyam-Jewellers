@@ -724,9 +724,9 @@ window.addEventListener('load', function() {
     <div style="position:absolute;bottom:28px;right:28px;color:rgba(214,139,22,0.18);font-size:72px;animation:ornFloat 4s ease-in-out infinite 3s;">&#10022;</div> -->
     <div style="position:relative;z-index:10;text-align:center;">
                 <div style="position:relative;width:120px;height:120px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
-            <div style="position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(214,139,22,0.5);animation:haloPulse 1.5s ease-in-out infinite;"></div>
-            <div style="position:absolute;inset:-24px;border-radius:50%;border:1px solid rgba(214,139,22,0.25);animation:haloPulse 1.5s ease-in-out infinite 0.5s;"></div>
-            <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #d68b16;box-shadow:0 0 28px rgba(214,139,22,0.8);background:#1a0a00;animation:gemGlowPulse 1.5s ease-in-out infinite;">
+            
+            
+            <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
                 <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
@@ -962,12 +962,7 @@ window.addEventListener('load', function() {
     </div>
 <?php endif; ?>
 
-    <footer style="background:linear-gradient(0deg,#f5e6c8,#fdf6e3);border-top:2px solid #d68b16;padding:20px;margin-top:40px;text-align:center;">
-        <p class="text-xs" style="color:#7a4e0a;">
-            &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
-            Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
-        </p>
-    </footer>
+
 
 
 <!-- ============================================================ -->
@@ -1715,6 +1710,12 @@ function submitPayment() {
     <?php endif; ?>
 
 </div><!-- /container -->
+    <footer style="background:linear-gradient(0deg,#f5e6c8,#fdf6e3);border-top:2px solid #d68b16;padding:20px;margin-top:40px;text-align:center;">
+        <p class="text-xs" style="color:#7a4e0a;">
+            &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
+            Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
+        </p>
+    </footer>
 </div><!-- /page-wrapper -->
 
 <!-- JAVASCRIPT -->

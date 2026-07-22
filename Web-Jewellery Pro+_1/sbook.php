@@ -397,9 +397,9 @@ $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
     <div style="position:absolute;bottom:28px;right:28px;color:rgba(214,139,22,0.18);font-size:72px;animation:ornFloat 4s ease-in-out infinite 3s;">✦</div>
     <div style="position:relative;z-index:10;text-align:center;">
                 <div style="position:relative;width:120px;height:120px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
-            <div style="position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(214,139,22,0.5);animation:haloPulse 1.5s ease-in-out infinite;"></div>
-            <div style="position:absolute;inset:-24px;border-radius:50%;border:1px solid rgba(214,139,22,0.25);animation:haloPulse 1.5s ease-in-out infinite 0.5s;"></div>
-            <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #d68b16;box-shadow:0 0 28px rgba(214,139,22,0.8);background:#1a0a00;animation:gemGlowPulse 1.5s ease-in-out infinite;">
+            
+            
+            <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
                 <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
@@ -428,7 +428,7 @@ $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
         $logo_found = false;
         foreach($logo_paths as $path) {
             if(file_exists($path)) {
-                echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #d68b16;display:inline-block;margin-right:8px;">';
+                echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:38px;width:auto;max-width:44px;object-fit:contain;display:inline-block;margin-right:8px;">';
                 $logo_found = true; break;
             }
         }
@@ -537,7 +537,7 @@ $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
                 $logo_found = false;
                 foreach($logo_paths as $path) {
                     if(file_exists($path)) {
-                        echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #d68b16;display:inline-block;margin-right:8px;">';
+                        echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:38px;width:auto;max-width:44px;object-fit:contain;display:inline-block;margin-right:8px;">';
                         $logo_found = true; break;
                     }
                 }

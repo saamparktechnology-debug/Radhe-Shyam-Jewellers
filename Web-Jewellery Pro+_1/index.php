@@ -820,9 +820,9 @@ if($is_logged_in) {
 
         <!-- Logo with pulsing circular halos -->
         <div style="position:relative;width:120px;height:120px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
-            <div style="position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(214,139,22,0.5);animation:haloPulse 1.5s ease-in-out infinite;"></div>
-            <div style="position:absolute;inset:-24px;border-radius:50%;border:1px solid rgba(214,139,22,0.25);animation:haloPulse 1.5s ease-in-out infinite 0.5s;"></div>
-            <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #d68b16;box-shadow:0 0 28px rgba(214,139,22,0.8);background:#1a0a00;display:flex;align-items:center;justify-content:center;animation:gemGlowPulse 1.5s ease-in-out infinite;">
+            
+            
+            <div style="width:120px;height:120px;background:transparent;display:flex;align-items:center;justify-content:center;animation:gemGlowPulse 1.5s ease-in-out infinite;">
                 <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
@@ -869,7 +869,7 @@ if($is_logged_in) {
         $logo_found = false;
         foreach($logo_paths as $path) {
             if(file_exists($path)) {
-                echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #d68b16;display:inline-block;margin-right:8px;">';
+                echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:38px;width:auto;max-width:44px;object-fit:contain;display:inline-block;margin-right:8px;">';
                 $logo_found = true; break;
             }
         }
@@ -956,7 +956,7 @@ if($is_logged_in) {
                 $logo_found = false;
                 foreach($logo_paths as $path) {
                     if(file_exists($path)) {
-                        echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:40px;width:40px;object-fit:contain;border-radius:50%;background:rgba(255,255,255,0.15);padding:2px;border:1.5px solid #ffd700;box-shadow:0 0 10px rgba(255,215,0,0.4);">';
+                        echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:40px;width:auto;max-width:44px;object-fit:contain;display:inline-block;">';
                         $logo_found = true; break;
                     }
                 }
@@ -1008,7 +1008,7 @@ if($is_logged_in) {
             $logo_found = false;
             foreach($logo_paths as $path) {
                 if(file_exists($path)) {
-                    echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid #d68b16;display:inline-block;margin-right:8px;">';
+                    echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:38px;width:auto;max-width:44px;object-fit:contain;display:inline-block;margin-right:8px;">';
                     $logo_found = true; break;
                 }
             }

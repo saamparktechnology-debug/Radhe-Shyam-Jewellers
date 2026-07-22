@@ -9,6 +9,13 @@ if(!isset($_SESSION['user_id'])) {
 }
 
 $invoice_no = mysqli_real_escape_string($conn, $_GET['invoice_no'] ?? '');
+if(!$invoice_no && isset($_GET['id'])) {
+    $id_param = intval($_GET['id']);
+    $inv_by_id_res = mysqli_query($conn, "SELECT invoice_no FROM invoices WHERE id = $id_param LIMIT 1");
+    if ($inv_by_id_res && $inv_by_id = mysqli_fetch_assoc($inv_by_id_res)) {
+        $invoice_no = $inv_by_id['invoice_no'];
+    }
+}
 if(!$invoice_no) { die("Invoice number missing."); }
 
 // Fetch invoice
@@ -56,6 +63,7 @@ $total = ($old_gold > 0 && abs($raw_total - $calc_total) > 1) ? $calc_total : $r
 $paid     = floatval($inv['paid_amount'] ?? 0);
 $balance  = floatval($inv['balance_amount'] ?? 0);
 $due_date = ($inv['payment_status'] === 'paid' || $balance <= 0) ? '' : (!empty($inv['due_date']) ? date('d/m/Y', strtotime($inv['due_date'])) : date('d/m/Y', strtotime('+30 days', strtotime($inv['created_at']))));
+$next_due_date_display = (!empty($inv['due_date']) && $inv['due_date'] !== '0000-00-00') ? date('d/m/Y', strtotime($inv['due_date'])) : '';
 $date_fmt = date('d/m/Y', strtotime($inv['created_at']));
 
 // Fetch customer previous balance if any
@@ -152,14 +160,14 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
 
 /* Full Page Coloured Logo Watermark (Rendered on top as a true watermark overlay) */
 .full-page-coloured-watermark {
-    position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:520px; height:520px; border-radius:50%; object-fit:cover; opacity:0.12; pointer-events:none; z-index:99; filter:none;
+    position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:520px; height:520px; object-fit:contain; opacity:0.12; pointer-events:none; z-index:99; filter:none;
 }
 
 .invoice-content { position:relative; z-index:2; }
 
 /* Top Header */
 .top-header { display:flex; align-items:center; gap:18px; margin-bottom:16px; border-bottom:2.5px solid #d68b16; padding-bottom:14px; }
-.very-left-logo { width:80px; height:80px; border-radius:50%; border:3px solid #d68b16; object-fit:cover; box-shadow:0 4px 14px rgba(214,139,22,0.3); background:#fff; flex-shrink:0; }
+.very-left-logo { width:85px; height:85px; object-fit:contain; border:none; box-shadow:none; background:transparent; flex-shrink:0; }
 .shop-branding-text { flex:1; }
 .shop-title { font-family:'Poppins', sans-serif; font-size:24px; font-weight:700; color:#2b1b17; line-height:1.1; letter-spacing:0.5px; margin-bottom:4px; }
 .shop-details-line { font-size:11.5px; color:#523e2b; line-height:1.5; }
@@ -287,7 +295,7 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                 </div>
 
                 <!-- Receipt Meta Bar -->
-                <div class="meta-bar">
+                <div class="meta-bar" style="grid-template-columns:<?php echo ($rec_new_balance > 0 && !empty($next_due_date_display)) ? '1fr 1fr 1.2fr 1.1fr' : '1fr 1fr 1.2fr'; ?>;">
                     <div class="meta-item">
                         <span class="meta-label">Receipt No.</span>
                         <span class="meta-value"><?php echo $rec_no; ?></span>
@@ -300,6 +308,12 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                         <span class="meta-label">Ref. Invoice No.</span>
                         <span class="meta-value"><?php echo htmlspecialchars($invoice_no); ?> (<?php echo $date_fmt; ?>)</span>
                     </div>
+                    <?php if($rec_new_balance > 0 && !empty($next_due_date_display)): ?>
+                    <div class="meta-item">
+                        <span class="meta-label" style="color:#b91c1c;">Next Due Date</span>
+                        <span class="meta-value" style="color:#b91c1c;"><?php echo $next_due_date_display; ?></span>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Bill To Block -->
@@ -345,7 +359,12 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                             <td class="right" style="color:#065f46;font-size:16px;font-weight:800;">₹<?php echo number_format($rec_paid_amount, 2); ?></td>
                         </tr>
                         <tr class="subtotal-row">
-                            <td style="font-size:12.5px;color:<?php echo $rec_new_balance > 0 ? '#b91c1c' : '#065f46'; ?>;">REMAINING OUTSTANDING BALANCE DUE</td>
+                            <td style="font-size:12.5px;color:<?php echo $rec_new_balance > 0 ? '#b91c1c' : '#065f46'; ?>;">
+                                REMAINING OUTSTANDING BALANCE DUE
+                                <?php if($rec_new_balance > 0 && !empty($next_due_date_display)): ?>
+                                    <br><span style="font-size:10.5px;font-weight:normal;color:#b91c1c;">🗓️ Next Payment Due Date: <strong><?php echo $next_due_date_display; ?></strong></span>
+                                <?php endif; ?>
+                            </td>
                             <td class="right" style="font-size:16px;font-weight:800;color:<?php echo $rec_new_balance > 0 ? '#b91c1c' : '#065f46'; ?>;">₹<?php echo number_format($rec_new_balance, 2); ?></td>
                         </tr>
                     </tbody>
@@ -410,8 +429,8 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                         <span class="meta-value"><?php echo $date_fmt; ?></span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-label">Due Date</span>
-                        <span class="meta-value"><?php echo $due_date; ?></span>
+                        <span class="meta-label"><?php echo ($current_balance > 0) ? 'Next Due Date' : 'Due Date'; ?></span>
+                        <span class="meta-value" style="<?php echo ($current_balance > 0) ? 'color:#b91c1c;' : ''; ?>"><?php echo !empty($next_due_date_display) ? $next_due_date_display : ($due_date ?: '—'); ?></span>
                     </div>
                 </div>
 
@@ -573,6 +592,13 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                                 <span>Current Balance (Total Due)</span>
                                 <span style="color:<?php echo $current_balance > 0 ? '#b91c1c' : '#15803d'; ?>;font-weight:700;">₹<?php echo number_format($current_balance, 2); ?></span>
                             </div>
+
+                            <?php if($current_balance > 0 && !empty($next_due_date_display)): ?>
+                            <div class="calc-line" style="color:#b91c1c;font-size:11px;margin-top:2px;">
+                                <span>🗓️ Next Due Date</span>
+                                <strong style="color:#b91c1c;"><?php echo $next_due_date_display; ?></strong>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
