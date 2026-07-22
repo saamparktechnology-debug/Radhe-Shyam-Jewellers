@@ -1,4 +1,7 @@
 <?php
+// Disable automatic throwing of uncaught SQL exceptions during fallback attempts
+mysqli_report(MYSQLI_REPORT_OFF);
+
 // Load .env file if present
 $env_file = __DIR__ . '/../.env';
 if (file_exists($env_file)) {
