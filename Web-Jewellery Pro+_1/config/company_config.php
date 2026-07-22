@@ -19,7 +19,7 @@ $COMPANY = [
     'email'         => 'Subhapatra169@gmail.com',
     'gstin'         => '19ELQPP1010L1ZR',   // GST Registration Number
     'pan'           => '',        // ← Paste PAN from PDF here
-    'logo_path'     => 'assets/images/radhe_shyam_logo.jpg',
+    'logo_path'     => 'assets/images/radhey_shyam_logo.png',
     'jurisdiction'  => 'SUBJECT TO PASCHIM MEDINIPUR JURISDICTION',
     'bank_name'     => '',
     'bank_account'  => '',
@@ -30,7 +30,7 @@ $COMPANY = [
 
 // Logo path fallbacks (tries each in order)
 $COMPANY_LOGO_PATHS = [
-    'assets/images/radhe_shyam_logo.jpg',
+    'assets/images/radhey_shyam_logo.png',
     'assets/images/radhe_shyam_logo.png',
     'logo and details/WhatsApp Image 2026-07-18 at 10.09.24 PM.jpeg',
 ];

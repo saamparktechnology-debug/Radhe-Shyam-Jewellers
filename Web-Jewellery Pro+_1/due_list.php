@@ -400,7 +400,7 @@ if ($res) {
     while ($r = mysqli_fetch_assoc($res)) $rows[] = $r;
 }
 
-$logo_paths = ['assets/images/radhe_shyam_logo.jpg','images/radhe_shyam_logo.jpg','radhe_shyam_logo.jpg'];
+$logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -617,6 +617,26 @@ nav.nav-gold { background: linear-gradient(135deg, #011921, #03373b) !important;
 .action-btn-history:hover { background: #1d4ed8; }
 .action-btn-delete { background: #fee2e2; color: #dc2626; border: 1px solid rgba(239,68,68,0.3); }
 .action-btn-delete:hover { background: #ef4444; color: #fff; }
+.action-btn-whatsapp { background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; }
+.action-btn-whatsapp:hover { background: linear-gradient(135deg, #20bd5a, #0e7a6e); }
+
+/* Due amount display - read only red */
+.due-amount-display {
+    font-size: 16px;
+    font-weight: 800;
+    color: #dc2626;
+    padding: 6px 4px;
+    display: block;
+    letter-spacing: 0.3px;
+}
+.due-amount-label {
+    font-size: 10px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    display: block;
+}
 /* ── Toast ────────────────────────────────────── */
 #toast {
     position: fixed; bottom: 28px; right: 28px; z-index: 9999;
@@ -702,7 +722,7 @@ nav.nav-gold { background: linear-gradient(135deg, #011921, #03373b) !important;
             <div style="position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(214,139,22,0.5);animation:haloPulse 1.5s ease-in-out infinite;"></div>
             <div style="position:absolute;inset:-24px;border-radius:50%;border:1px solid rgba(214,139,22,0.25);animation:haloPulse 1.5s ease-in-out infinite 0.5s;"></div>
             <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #d68b16;box-shadow:0 0 28px rgba(214,139,22,0.8);background:#1a0a00;animation:gemGlowPulse 1.5s ease-in-out infinite;">
-                <img src="assets/images/radhe_shyam_logo.jpg" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">
+                <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
 
@@ -937,8 +957,7 @@ function closeSidebar() {
                 <th>Items</th>
                 <th style="width:130px">Due Amount (₹)</th>
                 <th style="width:135px">Due Date</th>
-                <!-- <th style="width:220px">Tracker</th> -->
-                <th style="width:250px;text-align:center;">Actions</th>
+                <th style="width:280px;text-align:center;">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -972,13 +991,14 @@ function closeSidebar() {
                 </div>
             </td>
 
-            <!-- Due Amount (editable) -->
+            <!-- Due Amount (READ-ONLY, red display) -->
             <td>
-                <div class="field-label">Due (₹)</div>
-                <input type="number" min="0" step="0.01"
-                       class="inline-input due-amount-input"
-                       data-id="<?php echo intval($r['id']); ?>"
-                       value="<?php echo htmlspecialchars(number_format((float)$r['balance_amount'], 2, '.', '')); ?>">
+                <span class="due-amount-label">Due (₹)</span>
+                <span class="due-amount-display due-amount-input"
+                      data-id="<?php echo intval($r['id']); ?>"
+                      data-balance="<?php echo floatval($r['balance_amount']); ?>">
+                    ₹<?php echo number_format((float)$r['balance_amount'], 2); ?>
+                </span>
             </td>
 
             <!-- Due Date (editable) -->
@@ -991,18 +1011,18 @@ function closeSidebar() {
             </td>
 
             <!-- Actions -->
-            <td style="min-width:240px;">
-                <div class="action-grid">
-                    <!-- 1. Save -->
-                    <button type="button" class="action-btn action-btn-save"
-                            onclick="saveRow(<?php echo intval($r['id']); ?>, this)">
-                        <i class="fas fa-save"></i> Save
-                    </button>
-
-                    <!-- 2. Receive -->
+            <td style="min-width:260px;">
+                <div class="action-grid" style="grid-template-columns:1fr 1fr;">
+                    <!-- 1. Receive Payment -->
                     <button type="button" class="action-btn action-btn-receive"
                             onclick="openReceiveModal(<?php echo intval($r['id']); ?>, '<?php echo htmlspecialchars(addslashes($r['invoice_no'])); ?>', '<?php echo htmlspecialchars(addslashes($r['customer_name'])); ?>', <?php echo floatval($r['total_amount']); ?>, <?php echo floatval($r['balance_amount']); ?>)">
                         <i class="fas fa-hand-holding-usd"></i> Receive
+                    </button>
+
+                    <!-- 2. WhatsApp Reminder -->
+                    <button type="button" class="action-btn action-btn-whatsapp"
+                            onclick="sendWhatsAppReminder('<?php echo htmlspecialchars(addslashes($r['customer_name'])); ?>', '<?php echo htmlspecialchars($r['customer_mobile']); ?>', '<?php echo htmlspecialchars(addslashes($r['invoice_no'])); ?>', <?php echo floatval($r['balance_amount']); ?>, <?php echo floatval($r['total_amount']); ?>)">
+                        <i class="fab fa-whatsapp"></i> Payment Reminder
                     </button>
 
                     <!-- 3. History -->
@@ -1049,58 +1069,35 @@ function showToast(msg, type) {
     t._timer = setTimeout(function() { t.className = ''; }, 3200);
 }
 
-/* ── Save a row via AJAX ──────────────────────────── */
-function saveRow(id, btn) {
-    var row    = btn.closest('tr');
-    var amount = row.querySelector('.due-amount-input').value;
-    var ddate  = row.querySelector('.due-date-input').value;
+/* ── WhatsApp Reminder ────────────────────────────── */
+function sendWhatsAppReminder(name, mobile, invoiceNo, due, total) {
+    // Clean mobile: remove spaces, dashes, leading 0; add 91 country code
+    var cleaned = mobile.replace(/[\s\-\(\)]/g, '');
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+    if (!cleaned.startsWith('91')) cleaned = '91' + cleaned;
 
-    var params = new URLSearchParams();
-    params.append('action',         'update');
-    params.append('id',             id);
-    params.append('balance_amount', amount);
-    params.append('due_date',       ddate);
-    params.append('ajax',           '1');
+    var msg = '';
+    if (due <= 0) {
+        // Fully paid
+        msg = '🙏 Dear ' + name + ',';
+        msg += '\n\nThank you for your *complete payment* for Invoice *' + invoiceNo + '*.';
+        msg += '\n💰 Total Paid: ₹' + total.toFixed(2);
+        msg += '\n✅ Your account is fully cleared.';
+        msg += '\n\nThank you for trusting *RADHE SHYAM JEWELLERS*! 🌟\n📞 +91-8617536679';
+    } else {
+        // Part paid / still due
+        var paid = total - due;
+        msg = '🙏 Dear ' + name + ',';
+        msg += '\n\nThis is a gentle reminder regarding your pending due for Invoice *' + invoiceNo + '*.';
+        msg += '\n\n💳 Invoice Total: ₹' + total.toFixed(2);
+        msg += '\n✅ Amount Paid: ₹' + paid.toFixed(2);
+        msg += '\n🔴 *Remaining Due: ₹' + due.toFixed(2) + '*';
+        msg += '\n\nKindly clear the pending amount at your earliest convenience.';
+        msg += '\n\nThank you,\n*RADHE SHYAM JEWELLERS*\n📞 +91-8617536679';
+    }
 
-    btn.disabled    = true;
-    btn.innerHTML   = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving…';
-
-    fetch('due_list.php', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:    params.toString()
-    })
-    .then(r => r.json())
-    .then(data => {
-            if (data.success) {
-            var toastMsg  = 'Saved successfully!';
-            var toastType = 'success';
-            if (data.statement_attempted) {
-                if (data.statement_sent) {
-                    toastMsg = 'Saved! Statement emailed to customer.';
-                } else {
-                    toastMsg  = 'Saved, but statement email failed: ' + (data.statement_message || 'Unknown error');
-                    toastType = 'error';
-                }
-            } else if (data.statement_message) {
-                toastMsg = 'Saved! (' + data.statement_message + ')';
-            }
-            showToast(toastMsg, toastType);
-            btn.innerHTML = '<i class="fas fa-check mr-1"></i> Saved';
-            if (data.history_id && data.history_id > 0 && data.invoice_no) {
-                window.open('view_pdf.php?invoice_no=' + encodeURIComponent(data.invoice_no) + '&receipt=1&history_id=' + data.history_id, '_blank');
-            }
-            setTimeout(function() { btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save'; }, 2000);
-        } else {
-            showToast(data.message || 'Save failed.', 'error');
-            btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save';
-        }
-    })
-    .catch(function(err) {
-        showToast('Error: ' + (err.message || err), 'error');
-        btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save';
-    })
-    .finally(function() { btn.disabled = false; });
+    var url = 'https://wa.me/' + cleaned + '?text=' + encodeURIComponent(msg);
+    window.open(url, '_blank');
 }
 
 function openHistoryModal(invoiceId, customerName) {
@@ -1253,14 +1250,23 @@ function submitReceivePayment() {
             // Open printable invoice / receipt PDF
             window.open('view_pdf.php?id=' + id + '&history_id=' + res.history_id, '_blank');
             
-            // Update table DOM
-            const rowInput = document.querySelector('.due-amount-input[data-id="' + id + '"]');
-            if (rowInput) {
+            // Update table DOM - due amount display (read-only)
+            const rowDisplay = document.querySelector('.due-amount-input[data-id="' + id + '"]');
+            if (rowDisplay) {
                 if (res.is_fully_paid) {
-                    const row = rowInput.closest('tr');
-                    if (row) row.remove();
+                    const row = rowDisplay.closest('tr');
+                    if (row) {
+                        row.style.transition = 'opacity 0.6s';
+                        row.style.opacity = '0';
+                        setTimeout(function() { row.remove(); }, 600);
+                    }
                 } else {
-                    rowInput.value = res.new_balance.toFixed(2);
+                    rowDisplay.textContent = '₹' + parseFloat(res.new_balance).toFixed(2);
+                    rowDisplay.dataset.balance = res.new_balance;
+                    // Flash red to show update
+                    rowDisplay.style.transform = 'scale(1.15)';
+                    rowDisplay.style.transition = 'transform 0.3s';
+                    setTimeout(function() { rowDisplay.style.transform = 'scale(1)'; }, 300);
                 }
             }
         } else {

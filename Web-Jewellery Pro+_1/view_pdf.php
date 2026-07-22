@@ -92,7 +92,7 @@ function num2words($n) {
 }
 $total_words = num2words($total) . ' Rupees Only';
 
-$logo_file = 'assets/images/radhe_shyam_logo.jpg';
+$logo_file = 'assets/images/radhey_shyam_logo.png';
 
 // ── DUE PAYMENT RECEIPT MODE LOGIC ──
 $is_receipt = (isset($_GET['receipt']) && $_GET['receipt'] == '1') || isset($_GET['history_id']);

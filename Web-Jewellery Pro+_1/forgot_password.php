@@ -182,7 +182,7 @@ $step = $_SESSION['fp_step'] ?? $step;
 
         <!-- Header -->
         <div class="gradient-bg p-6 text-center">
-    <img src="./assets/images/radhe_shyam_logo.jpg" 
+    <img src="./assets/images/radhey_shyam_logo.png" 
          class="w-20 h-20 object-contain mx-auto mb-2" alt="">
     <h2 class="text-2xl font-bold text-white">RADHE SHYAM JEWELLERS</h2>
     <p class="text-white opacity-90 text-sm">Forgot Password</p>

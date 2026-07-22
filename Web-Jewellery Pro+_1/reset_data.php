@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_reset']) && $
 <div class="sidebar" id="mainSidebar">
     <div class="sidebar-logo">
         <?php
-        $logo_paths = ['assets/images/radhe_shyam_logo.jpg','images/radhe_shyam_logo.jpg','radhe_shyam_logo.jpg'];
+        $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
         $found = false;
         foreach($logo_paths as $p){ if(file_exists($p)){ echo '<img src="'.$p.'" alt="Logo">'; $found=true; break; } }
         if(!$found) echo '<i class="fas fa-gem" style="color:#fff;font-size:30px;"></i>';

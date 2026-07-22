@@ -58,7 +58,7 @@ while ($row = mysqli_fetch_assoc($res)) {
 }
 $total = count($customers);
 
-$logo_paths = ['assets/images/radhe_shyam_logo.jpg','images/radhe_shyam_logo.jpg','radhe_shyam_logo.jpg'];
+$logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -247,7 +247,7 @@ h1, h2, h3, .gold-font { font-family: 'Poppins', sans-serif; font-weight: 700; }
                 <i class="fas fa-bars"></i>
             </button>
             <div class="flex items-center gap-2">
-                <img src="assets/images/radhe_shyam_logo.jpg" alt="Logo" class="w-8 h-8 rounded-full object-cover border border-amber-400" onerror="this.src='radhe_shyam_logo.jpg'">
+                <img src="assets/images/radhey_shyam_logo.png" alt="Logo" class="w-8 h-8 rounded-full object-cover border border-amber-400" onerror="this.src='radhey_shyam_logo.png'">
                 <div>
                     <h1 class="font-bold text-lg text-amber-950 leading-none">RADHE SHYAM JEWELLERS</h1>
                     <p class="text-xs text-amber-700 font-medium">Customer Contacts Directory</p>

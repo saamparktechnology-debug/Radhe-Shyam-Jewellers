@@ -344,7 +344,7 @@ while($r = mysqli_fetch_assoc($bills_result)) $bills_rows[] = $r;
 $total_bills_amount = array_sum(array_column($bills_rows, 'total_amount'));
 $total_bills_count  = count($bills_rows);
 
-$logo_paths = ['assets/images/radhe_shyam_logo.jpg','images/radhe_shyam_logo.jpg','radhe_shyam_logo.jpg'];
+$logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -624,7 +624,7 @@ $logo_paths = ['assets/images/radhe_shyam_logo.jpg','images/radhe_shyam_logo.jpg
             <div style="position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(214,139,22,0.5);animation:haloPulse 1.5s ease-in-out infinite;"></div>
             <div style="position:absolute;inset:-24px;border-radius:50%;border:1px solid rgba(214,139,22,0.25);animation:haloPulse 1.5s ease-in-out infinite 0.5s;"></div>
             <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #d68b16;box-shadow:0 0 28px rgba(214,139,22,0.8);background:#1a0a00;animation:gemGlowPulse 1.5s ease-in-out infinite;">
-                <img src="assets/images/radhe_shyam_logo.jpg" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">
+                <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
 

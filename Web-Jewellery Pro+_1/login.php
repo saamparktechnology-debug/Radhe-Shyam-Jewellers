@@ -483,7 +483,7 @@ $otpSent = isset($_SESSION['otp_sent']) && $_SESSION['otp_sent'];
         <div class="left-content">
             <!-- Brand top -->
             <div class="brand-top">
-                <img src="assets/images/radhe_shyam_logo.jpg" alt="Logo"
+                <img src="assets/images/radhey_shyam_logo.png" alt="Logo"
                      onerror="this.style.display='none'">
                 <div class="brand-top-text">
                     <h2>RADHE SHYAM JEWELLERS</h2>
@@ -519,7 +519,7 @@ $otpSent = isset($_SESSION['otp_sent']) && $_SESSION['otp_sent'];
 
         <!-- Logo -->
         <div class="form-logo">
-            <img src="assets/images/radhe_shyam_logo.jpg" alt="Logo" onerror="this.style.display='none'">
+            <img src="assets/images/radhey_shyam_logo.png" alt="Logo" onerror="this.style.display='none'">
             <h1>RADHE SHYAM JEWELLERS</h1>
             <p>Premium Jewellery Management System</p>
         </div>

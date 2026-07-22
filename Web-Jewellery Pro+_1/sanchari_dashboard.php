@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once 'config/database.php';
 if(!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
@@ -31,7 +31,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])) {
 
 $tab = $_GET['tab'] ?? 'overview';
 
-// ── Stats ──────────────────────────────────────────────────────────────────
+// -- Stats ------------------------------------------------------------------
 $total_customers   = mysqli_fetch_assoc(mysqli_query($conn,"SELECT COUNT(*) c FROM sanchari_customers"))['c'] ?? 0;
 $active_customers  = mysqli_fetch_assoc(mysqli_query($conn,"SELECT COUNT(*) c FROM sanchari_customers WHERE status='Active'"))['c'] ?? 0;
 $total_collected   = mysqli_fetch_assoc(mysqli_query($conn,"SELECT COALESCE(SUM(amount),0) s FROM sanchari_payments"))['s'] ?? 0;
@@ -39,7 +39,7 @@ $total_weight      = mysqli_fetch_assoc(mysqli_query($conn,"SELECT COALESCE(SUM(
 $pending_balance   = mysqli_fetch_assoc(mysqli_query($conn,"SELECT COALESCE(SUM(balance_amount),0) s FROM sanchari_payments WHERE payment_status!='paid'"))['s'] ?? 0;
 $this_month        = mysqli_fetch_assoc(mysqli_query($conn,"SELECT COALESCE(SUM(amount),0) s FROM sanchari_payments WHERE MONTH(payment_date)=MONTH(CURDATE()) AND YEAR(payment_date)=YEAR(CURDATE())"))['s'] ?? 0;
 
-// ── Data for tabs ─────────────────────────────────────────────────────────
+// -- Data for tabs ---------------------------------------------------------
 $customers_data = mysqli_query($conn,"SELECT sc.*, COALESCE(SUM(sp.amount),0) total_paid, COUNT(sp.id) installments FROM sanchari_customers sc LEFT JOIN sanchari_payments sp ON sc.customer_id=sp.customer_id GROUP BY sc.id ORDER BY sc.id DESC");
 $payments_data  = mysqli_query($conn,"SELECT * FROM sanchari_payments ORDER BY id DESC LIMIT 200");
 
@@ -66,22 +66,22 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
   .total{font-weight:bold;background:#fff8f4;}
   .footer{margin-top:20px;font-size:10px;color:#999;text-align:center;}
 </style></head><body>
-<h2>RADHE SHYAM JEWELLERS — Sanchari Statement</h2>
+<h2>RADHE SHYAM JEWELLERS � Sanchari Statement</h2>
 <div class="info">
   <strong><?= htmlspecialchars($cust['customer_name'] ?? '') ?></strong> &nbsp;|&nbsp;
   Book ID: <?= htmlspecialchars($cust['book_id'] ?? '') ?> &nbsp;|&nbsp;
   Mobile: <?= htmlspecialchars($cust['mobile'] ?? '') ?><br>
   Joining: <?= htmlspecialchars($cust['joining_date'] ?? '') ?> &nbsp;|&nbsp;
-  Monthly: ₹<?= number_format($cust['monthly_amount'] ?? 0, 2) ?> &nbsp;|&nbsp;
+  Monthly: ?<?= number_format($cust['monthly_amount'] ?? 0, 2) ?> &nbsp;|&nbsp;
   Status: <?= htmlspecialchars($cust['status'] ?? '') ?>
 </div>
 <table>
-  <thead><tr><th>#</th><th>Payment ID</th><th>Date</th><th>Installment</th><th>Amount (₹)</th><th>Gold Rate</th><th>Weight (g)</th><th>Mode</th></tr></thead>
+  <thead><tr><th>#</th><th>Payment ID</th><th>Date</th><th>Installment</th><th>Amount (?)</th><th>Gold Rate</th><th>Weight (g)</th><th>Mode</th></tr></thead>
   <tbody>
   <?php foreach($rows as $i=>$r): ?>
   <tr><td><?=$i+1?></td><td><?=htmlspecialchars($r['payment_id'])?></td><td><?=htmlspecialchars($r['payment_date'])?></td><td><?=$r['installment_no']?></td><td><?=number_format($r['amount'],2)?></td><td><?=number_format($r['gold_rate'],2)?></td><td><?=number_format($r['weight'],3)?></td><td><?=htmlspecialchars($r['payment_mode'])?></td></tr>
   <?php endforeach; ?>
-  <tr class="total"><td colspan="4">Total</td><td>₹<?=number_format($total_p,2)?></td><td>—</td><td><?=number_format($total_w,3)?>g</td><td></td></tr>
+  <tr class="total"><td colspan="4">Total</td><td>?<?=number_format($total_p,2)?></td><td>�</td><td><?=number_format($total_w,3)?>g</td><td></td></tr>
   </tbody>
 </table>
 <div class="footer">Generated on <?=date('d M Y H:i')?> | RADHE SHYAM JEWELLERS</div>
@@ -162,7 +162,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     <li class="nav-item"><a class="nav-link <?=$tab==='reports'?'active':''?>" href="?tab=reports"><i class="bi bi-bar-chart me-1"></i>Reports</a></li>
   </ul>
 
-  <!-- ═══ OVERVIEW ═══════════════════════════════════════════════════════ -->
+  <!-- --- OVERVIEW ------------------------------------------------------- -->
   <?php if($tab==='overview'): ?>
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-2">
@@ -182,14 +182,14 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     <div class="col-6 col-md-2">
       <div class="stat-card">
         <div class="icon"><i class="bi bi-cash"></i></div>
-        <div class="val">₹<?=number_format($total_collected,0)?></div>
+        <div class="val">?<?=number_format($total_collected,0)?></div>
         <div class="lbl">Total Collected</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
       <div class="stat-card">
         <div class="icon"><i class="bi bi-calendar-month"></i></div>
-        <div class="val">₹<?=number_format($this_month,0)?></div>
+        <div class="val">?<?=number_format($this_month,0)?></div>
         <div class="lbl">This Month</div>
       </div>
     </div>
@@ -203,7 +203,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     <div class="col-6 col-md-2">
       <div class="stat-card" style="border-left-color:#e74c3c">
         <div class="icon" style="color:#e74c3c"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="val" style="color:#e74c3c">₹<?=number_format($pending_balance,0)?></div>
+        <div class="val" style="color:#e74c3c">?<?=number_format($pending_balance,0)?></div>
         <div class="lbl">Pending Balance</div>
       </div>
     </div>
@@ -225,7 +225,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
             <td><span class="badge bg-light text-dark"><?=htmlspecialchars($r['payment_id'])?></span></td>
             <td><?=htmlspecialchars($r['customer_name'])?></td>
             <td><?=htmlspecialchars($r['payment_date'])?></td>
-            <td><strong>₹<?=number_format($r['amount'],2)?></strong></td>
+            <td><strong>?<?=number_format($r['amount'],2)?></strong></td>
             <td><?=number_format($r['weight'],3)?>g</td>
             <td><span class="badge bg-light text-dark"><?=htmlspecialchars($r['payment_mode'])?></span></td>
           </tr>
@@ -236,13 +236,13 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     </div>
   </div>
 
-  <!-- ═══ CUSTOMERS ══════════════════════════════════════════════════════ -->
+  <!-- --- CUSTOMERS ------------------------------------------------------ -->
   <?php elseif($tab==='customers'): ?>
   <div class="card">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 style="color:var(--gold)" class="mb-0"><i class="bi bi-people me-2"></i>Customer List</h6>
-        <input type="text" id="custSearch" class="form-control form-control-sm search-box" placeholder="Search name / mobile…">
+        <input type="text" id="custSearch" class="form-control form-control-sm search-box" placeholder="Search name / mobile�">
       </div>
       <div class="table-responsive">
         <table class="table tbl table-hover" id="custTable">
@@ -254,10 +254,10 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
             <td><?=htmlspecialchars($r['book_id'])?></td>
             <td><strong><?=htmlspecialchars($r['customer_name'])?></strong></td>
             <td><?=htmlspecialchars($r['mobile'])?></td>
-            <td>₹<?=number_format($r['monthly_amount'],2)?></td>
+            <td>?<?=number_format($r['monthly_amount'],2)?></td>
             <td><?=htmlspecialchars($r['joining_date'])?></td>
             <td><?=$r['installments']?></td>
-            <td>₹<?=number_format($r['total_paid'],2)?></td>
+            <td>?<?=number_format($r['total_paid'],2)?></td>
             <td><span class="badge badge-<?=strtolower($r['status'])?>"><?=$r['status']?></span></td>
             <td>
               <div class="d-flex gap-1 flex-wrap">
@@ -269,7 +269,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
                     <option <?=$r['status']==='Completed'?'selected':''?>>Completed</option>
                     <option <?=$r['status']==='Closed'?'selected':''?>>Closed</option>
                   </select>
-                  <button class="btn btn-sm btn-warning text-white" title="Save">✓</button>
+                  <button class="btn btn-sm btn-warning text-white" title="Save">?</button>
                 </form>
                 <a href="?tab=customers&pdf=1&cid=<?=urlencode($r['customer_id'])?>" target="_blank" class="btn btn-sm btn-outline-secondary" title="Statement PDF"><i class="bi bi-file-pdf"></i></a>
               </div>
@@ -282,13 +282,13 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     </div>
   </div>
 
-  <!-- ═══ PAYMENT HISTORY ════════════════════════════════════════════════ -->
+  <!-- --- PAYMENT HISTORY ------------------------------------------------ -->
   <?php elseif($tab==='payments'): ?>
   <div class="card">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 style="color:var(--gold)" class="mb-0"><i class="bi bi-cash-stack me-2"></i>Payment History</h6>
-        <input type="text" id="paySearch" class="form-control form-control-sm search-box" placeholder="Search customer / ID…">
+        <input type="text" id="paySearch" class="form-control form-control-sm search-box" placeholder="Search customer / ID�">
       </div>
       <div class="table-responsive">
         <table class="table tbl table-hover" id="payTable">
@@ -301,8 +301,8 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
             <td><?=htmlspecialchars($r['customer_name'])?></td>
             <td class="text-center"><?=$r['installment_no']?></td>
             <td><?=htmlspecialchars($r['payment_date'])?></td>
-            <td><strong>₹<?=number_format($r['amount'],2)?></strong></td>
-            <td>₹<?=number_format($r['gold_rate'],2)?></td>
+            <td><strong>?<?=number_format($r['amount'],2)?></strong></td>
+            <td>?<?=number_format($r['gold_rate'],2)?></td>
             <td><?=number_format($r['weight'],3)?>g</td>
             <td><?=htmlspecialchars($r['payment_mode'])?></td>
             <td><small class="text-muted"><?=htmlspecialchars($r['remarks'])?></small></td>
@@ -314,7 +314,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     </div>
   </div>
 
-  <!-- ═══ UPDATE PAYMENT ════════════════════════════════════════════════ -->
+  <!-- --- UPDATE PAYMENT ------------------------------------------------ -->
   <?php elseif($tab==='update'): ?>
   <div class="card mx-auto" style="max-width:750px">
     <div class="card-body p-4">
@@ -332,9 +332,9 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
             <td><?=htmlspecialchars($r['customer_name'])?></td>
             <td class="text-center"><?=$r['installment_no']?></td>
             <td><strong><?=date('d M Y', strtotime($r['payment_date']))?></strong></td>
-            <td>₹<?=number_format($r['amount'],2)?></td>
-            <td>₹<?=number_format($r['paid_amount'] ?? $r['amount'],2)?></td>
-            <td>₹<?=number_format($r['balance_amount'] ?? 0,2)?></td>
+            <td>?<?=number_format($r['amount'],2)?></td>
+            <td>?<?=number_format($r['paid_amount'] ?? $r['amount'],2)?></td>
+            <td>?<?=number_format($r['balance_amount'] ?? 0,2)?></td>
             <td><span class="badge badge-<?=$r['payment_status']??'paid'?>"><?=$r['payment_status']??'paid'?></span></td>
             <td>
               <button class="btn btn-sm btn-outline-warning" onclick="openEdit(<?=$r['id']?>,<?=$r['amount']?>,<?=$r['paid_amount']??$r['amount']?>,'<?=htmlspecialchars($r['payment_mode']??'Cash')?>','<?=$r['payment_date']?>')">
@@ -386,7 +386,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
     </div>
   </div>
 
-  <!-- ═══ REPORTS ════════════════════════════════════════════════════════ -->
+  <!-- --- REPORTS -------------------------------------------------------- -->
   <?php elseif($tab==='reports'): ?>
   <?php
   $rpt_customers = mysqli_query($conn,"SELECT sc.customer_id, sc.customer_name, sc.book_id, sc.mobile, sc.monthly_amount, sc.scheme_duration, sc.joining_date, sc.status, COALESCE(SUM(sp.amount),0) total_paid, COALESCE(SUM(sp.weight),0) total_weight, COUNT(sp.id) installments FROM sanchari_customers sc LEFT JOIN sanchari_payments sp ON sc.customer_id=sp.customer_id GROUP BY sc.id ORDER BY sc.customer_name ASC");
@@ -403,7 +403,7 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
   <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="stat-card">
-        <div class="val">₹<?=number_format($grand_amount,2)?></div>
+        <div class="val">?<?=number_format($grand_amount,2)?></div>
         <div class="lbl">Grand Total Collected</div>
       </div>
     </div>
@@ -438,10 +438,10 @@ if(isset($_GET['pdf']) && isset($_GET['cid'])) {
             <td><strong><?=htmlspecialchars($r['customer_name'])?></strong></td>
             <td><?=htmlspecialchars($r['book_id'])?></td>
             <td><?=htmlspecialchars($r['mobile'])?></td>
-            <td>₹<?=number_format($r['monthly_amount'],2)?></td>
+            <td>?<?=number_format($r['monthly_amount'],2)?></td>
             <td><?=htmlspecialchars($r['joining_date'])?></td>
             <td class="text-center"><?=$r['installments']?></td>
-            <td><strong>₹<?=number_format($r['total_paid'],2)?></strong></td>
+            <td><strong>?<?=number_format($r['total_paid'],2)?></strong></td>
             <td><?=number_format($r['total_weight'],3)?>g</td>
             <td><span class="badge badge-<?=strtolower($r['status'])?>"><?=$r['status']?></span></td>
             <td><a href="?tab=reports&pdf=1&cid=<?=urlencode($r['customer_id'])?>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> PDF</a></td>
@@ -475,7 +475,7 @@ liveSearch('paySearch','payTable');
 // Edit modal
 function openEdit(id, total, paid, mode, date) {
   document.getElementById('modal_id').value = id;
-  document.getElementById('modal_total').value = '₹' + parseFloat(total).toFixed(2);
+  document.getElementById('modal_total').value = '?' + parseFloat(total).toFixed(2);
   document.getElementById('modal_paid').value = parseFloat(paid).toFixed(2);
   // Format date nicely
   if(date) {
