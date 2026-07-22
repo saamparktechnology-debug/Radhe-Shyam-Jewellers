@@ -218,6 +218,9 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_invoices);
 
+// Ensure gst_type supports string values without truncation errors
+mysqli_query($conn, "ALTER TABLE invoices MODIFY COLUMN gst_type VARCHAR(50) DEFAULT 'non_gst'");
+
 // Ensure all required columns exist on invoices table
 $columns_to_ensure = [
     'customer_id'      => "INT NULL",
