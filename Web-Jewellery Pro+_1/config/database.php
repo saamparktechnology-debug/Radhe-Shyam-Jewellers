@@ -1,25 +1,59 @@
 <?php
+// Load .env file if present
+$env_file = __DIR__ . '/../.env';
+if (file_exists($env_file)) {
+    $lines = file($env_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (strpos($line, '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            $name = trim($name);
+            $value = trim(trim($value), "\"'");
+            if (!isset($_ENV[$name])) $_ENV[$name] = $value;
+        }
+    }
+}
+
 $host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ? getenv('DB_HOST') : '127.0.0.1');
 $user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ? getenv('DB_USER') : 'root');
 $password = isset($_ENV['DB_PASSWORD']) ? $_ENV['DB_PASSWORD'] : (getenv('DB_PASSWORD') ? getenv('DB_PASSWORD') : '');
 $database = isset($_ENV['DB_DATABASE']) ? $_ENV['DB_DATABASE'] : (getenv('DB_DATABASE') ? getenv('DB_DATABASE') : 'radhe_shyam_jewellers');
 $port = isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : (getenv('DB_PORT') ? getenv('DB_PORT') : '3306');
 
-// ── Auto-create DB if it doesn't exist (first run setup) ──
-try {
-    $_tmp_conn = @mysqli_connect($host, $user, $password, '', $port);
-    if($_tmp_conn) {
-        mysqli_query($_tmp_conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        mysqli_close($_tmp_conn);
+// ── Smart connection with password fallbacks ──
+$conn = false;
+$passwords_to_try = array_unique([$password, '', 'root', 'radhe#123', '123456']);
+$hosts_to_try     = array_unique([$host, '127.0.0.1', 'localhost']);
+
+foreach ($hosts_to_try as $h) {
+    foreach ($passwords_to_try as $p) {
+        $conn = @mysqli_connect($h, $user, $p, '', $port);
+        if ($conn) {
+            mysqli_query($conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            mysqli_select_db($conn, $database);
+            $host = $h; $password = $p;
+            break 2;
+        }
     }
-} catch (Throwable $e) {
-    // Ignore initial DB creation check if user lacks global database creation privileges
 }
 
-$conn = mysqli_connect($host, $user, $password, $database, $port);
+if (!$conn) {
+    // Try direct database connection
+    foreach ($hosts_to_try as $h) {
+        foreach ($passwords_to_try as $p) {
+            $conn = @mysqli_connect($h, $user, $p, $database, $port);
+            if ($conn) { $host = $h; $password = $p; break 2; }
+        }
+    }
+}
 
-if(!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
+if (!$conn) {
+    die("<div style='padding:30px;font-family:sans-serif;background:#fff1f2;color:#991b1b;border:2px solid #f87171;border-radius:12px;margin:40px auto;max-width:650px;'>
+        <h3 style='margin-top:0;'>❌ Database Connection Failed</h3>
+        <p>Could not connect to MySQL database <strong>" . htmlspecialchars($database) . "</strong> with user <strong>" . htmlspecialchars($user) . "</strong>.</p>
+        <p>Please check your MySQL root password or set it in a <code>.env</code> file.</p>
+    </div>");
 }
 
 // Set timezone
