@@ -426,6 +426,39 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     $col_og = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'old_gold_amount'")) > 0;
     if(!$col_og) mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN old_gold_amount DECIMAL(10,2) DEFAULT 0");
 
+    // ── STOCK VALIDATION: Pre-check available stock pieces before creating invoice ──
+    $raw_items = json_decode($_POST['items'] ?? '[]', true);
+    if (is_array($raw_items)) {
+        $req_pcs_map = [];
+        foreach ($raw_items as $it) {
+            $pid = $it['product_id'] ?? '';
+            if ($pid !== 'other' && is_numeric($pid)) {
+                $pid_int = intval($pid);
+                $pcs_req = floatval($it['pcs'] ?? $it['stock_deduct'] ?? 1);
+                if ($pcs_req <= 0) $pcs_req = 1;
+                $req_pcs_map[$pid_int] = ($req_pcs_map[$pid_int] ?? 0) + $pcs_req;
+            }
+        }
+        foreach ($req_pcs_map as $pid_int => $total_pcs_req) {
+            $st_res = mysqli_query($conn, "SELECT name, item_name, quantity FROM products WHERE id = $pid_int");
+            if ($st_res && $st_row = mysqli_fetch_assoc($st_res)) {
+                $avail_qty = floatval($st_row['quantity']);
+                $p_title = !empty($st_row['item_name']) ? $st_row['item_name'] : $st_row['name'];
+                if ($avail_qty <= 0) {
+                    $error = "&#10007; Cannot create invoice! Product '$p_title' is OUT OF STOCK (0 pcs available).";
+                    goto skip_invoice;
+                }
+                if ($total_pcs_req > $avail_qty) {
+                    $error = "&#10007; Cannot create invoice! Product '$p_title' has only $avail_qty pcs in stock, but $total_pcs_req pcs requested.";
+                    goto skip_invoice;
+                }
+            } else {
+                $error = "&#10007; Cannot create invoice! Selected stock product (ID: $pid_int) was not found in stock.";
+                goto skip_invoice;
+            }
+        }
+    }
+
     $invoice_query = "INSERT INTO invoices (invoice_no, customer_name, customer_mobile, customer_address, customer_gstin, gst_type, subtotal, gst_amount, total_amount, payment_status, payment_method, paid_amount, balance_amount, cash_paid, upi_paid, account_paid, due_date, created_by, huid_code, old_gold_amount)
               VALUES ('$invoice_no', '$customer_name', '$customer_mobile', '$customer_address', '$customer_gstin', '$gst_type', $subtotal, $gst_amount, $total_amount, '$payment_status', '$payment_method', $paid_amount, $balance_amount, $cash_paid, $upi_paid, $account_paid, $due_date, $created_by_val, '$huid_code', $old_gold_amount)";
     $inv_exec = mysqli_query($conn, $invoice_query);
@@ -487,10 +520,17 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
                     continue;
                 }
                 $pid = intval($product_id);
+                $pcs_deduct = floatval($item['pcs'] ?? $item['stock_deduct'] ?? 1);
+                if($pcs_deduct <= 0) $pcs_deduct = 1;
+
                 $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount)
                                VALUES ($invoice_id, $pid, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount)";
                 mysqli_query($conn, $item_query);
-                mysqli_query($conn, "UPDATE products SET quantity = quantity - $quantity WHERE id = $pid");
+
+                // 1. Deduct piece count from products.quantity
+                mysqli_query($conn, "UPDATE products SET quantity = quantity - $pcs_deduct WHERE id = $pid");
+                // 2. Auto-delete product from stock table if stock reaches 0 or less
+                mysqli_query($conn, "DELETE FROM products WHERE id = $pid AND quantity <= 0");
             }
         }
         $total_qty = 0;
@@ -1825,7 +1865,9 @@ function filterGramStock(query) {
         : ALL_PRODUCTS;
         
     filtered.forEach(p => {
-        const display = (p.item_name || p.name) + ' | SN:' + p.serial_no + ' | Stock: ' + p.quantity + 'g';
+        const isOutOfStock = (parseFloat(p.quantity) <= 0);
+        const stockText = isOutOfStock ? 'OUT OF STOCK' : (p.quantity + ' pcs');
+        const display = (p.item_name || p.name) + ' | SN:' + (p.serial_no || '—') + ' | Stock: ' + stockText;
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = display;
@@ -1835,6 +1877,7 @@ function filterGramStock(query) {
         opt.dataset.category = p.category;
         opt.dataset.itemName = p.item_name || p.name;
         opt.dataset.qty = p.quantity;
+        if (isOutOfStock) opt.style.color = '#dc2626';
         select.appendChild(opt);
     });
 
@@ -1842,10 +1885,11 @@ function filterGramStock(query) {
         suggDiv.innerHTML = '';
         if (query.length > 0 && filtered.length > 0) {
             filtered.slice(0, 8).forEach(p => {
+                const isOut = (parseFloat(p.quantity) <= 0);
                 const item = document.createElement('div');
                 item.className = 'autocomplete-suggestion-item';
                 item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;background:#fff;';
-                item.innerHTML = '<div><strong style="color:#022c22;">' + (p.item_name || p.name) + '</strong> <span style="font-size:11px;color:#059669;">(' + p.category + ')</span></div><div style="font-size:11px;color:#7a4e0a;">SN: ' + (p.serial_no || '—') + ' | ' + p.quantity + 'g</div>';
+                item.innerHTML = '<div><strong style="color:#022c22;">' + (p.item_name || p.name) + '</strong> <span style="font-size:11px;color:#059669;">(' + p.category + ')</span></div><div style="font-size:11px;color:' + (isOut?'#dc2626':'#7a4e0a') + ';">SN: ' + (p.serial_no || '—') + ' | ' + (isOut ? 'OUT OF STOCK' : (p.quantity + ' pcs')) + '</div>';
                 item.onmouseover = function() { this.style.background = '#f5ead0'; };
                 item.onmouseout = function() { this.style.background = '#fff'; };
                 item.onclick = function() {
@@ -1891,21 +1935,25 @@ function onGramStockChange() {
     const shopRatePerGram = getShopRateForCategory(category); // returns per-gram from shop rates
     const shopRate10g     = shopRatePerGram * 10;             // convert back to per-10g for the field
 
-    if (shopRate10g > 0) {
+    if (qty <= 0) {
+        rateInput.value = '';
+        weightInput.value = '';
+        infoDiv.innerHTML = '<strong style="color:#dc2626;">' + name + '</strong> | <strong style="color:#dc2626;">❌ OUT OF STOCK (0 pcs available)</strong>';
+    } else if (shopRate10g > 0) {
         rateInput.value = shopRate10g.toFixed(0);
         const hint = document.getElementById('gramRatePerGramHint');
         if(hint) hint.textContent = '\u2248 \u20B9' + shopRatePerGram.toLocaleString('en-IN', {maximumFractionDigits:2}) + ' per gram (shop rate used in billing)';
-        infoDiv.innerHTML = '<strong>' + name + '</strong> | Shop Rate: \u20B9' + shopRatePerGram.toLocaleString('en-IN', {maximumFractionDigits:2}) + '/g | Stock Value: \u20B9' + price.toLocaleString('en-IN') + ' | Qty: ' + qty + ' pcs';
+        infoDiv.innerHTML = '<strong>' + name + '</strong> | Shop Rate: \u20B9' + shopRatePerGram.toLocaleString('en-IN', {maximumFractionDigits:2}) + '/g | Stock Value: \u20B9' + price.toLocaleString('en-IN') + ' | Available Stock: <strong style="color:#059669;">' + qty + ' pcs</strong>';
+        weightInput.value = '';
     } else {
-        // No shop rate set — show warning, clear rate field
         rateInput.value = '';
         const hint = document.getElementById('gramRatePerGramHint');
         if(hint) hint.textContent = '\u26A0 Set shop rate for ' + (category || 'this category') + ' in the panel on the right first!';
         if(hint) hint.style.color = '#dc2626';
-        infoDiv.innerHTML = '<strong>' + name + '</strong> | Stock Value: \u20B9' + price.toLocaleString('en-IN') + ' | Qty: ' + qty + ' pcs | \u26A0 Set shop rate first!';
+        infoDiv.innerHTML = '<strong>' + name + '</strong> | Stock Value: \u20B9' + price.toLocaleString('en-IN') + ' | Available Stock: <strong style="color:#059669;">' + qty + ' pcs</strong> | \u26A0 Set shop rate first!';
+        weightInput.value = '';
     }
 
-    weightInput.value = (qty > 0) ? qty : '';  // Pre-fill weight with stock qty if available
     infoDiv.classList.remove('hidden');
     autoGramTotal();
 }
@@ -2100,6 +2148,24 @@ function submitGramItem() {
         name = opt.dataset.itemName;
         hsn = '7108';
         weight = parseFloat(document.getElementById('gramWeight').value) || 0;
+
+        // Stock pcs validation check
+        const stockQty = parseFloat(opt.dataset.qty) || 0;
+        let existingPcs = 0;
+        items.forEach(it => {
+            if (String(it.product_id) === String(productId)) {
+                existingPcs += (parseFloat(it.pcs) || 1);
+            }
+        });
+        const totalReqPcs = existingPcs + qty;
+        if (stockQty <= 0) {
+            alert('❌ Out of Stock!\n"' + name + '" is currently out of stock (0 pcs available).');
+            return;
+        }
+        if (totalReqPcs > stockQty) {
+            alert('❌ Exceeds Available Stock!\nOnly ' + stockQty + ' pcs available in stock for "' + name + '", but ' + totalReqPcs + ' pcs requested.');
+            return;
+        }
     } else if (source === 'category') {
         const cat = document.getElementById('gramCatSelect').value;
         const typeSelect = document.getElementById('gramItemType');
@@ -2161,6 +2227,7 @@ function submitGramItem() {
         quantity: weight > 0 ? weight : qty,
         unit: unit,
         pcs: qty,
+        stock_deduct: qty,
         price: itemPrice,
         base_amount: baseAmount,
         making_charge_pct: imcPct,
@@ -2222,7 +2289,9 @@ function filterQtyStock(query) {
         : ALL_PRODUCTS;
         
     filtered.forEach(p => {
-        const display = (p.item_name || p.name) + ' | SN:' + p.serial_no + ' | Stock: ' + p.quantity + ' pcs';
+        const isOutOfStock = (parseFloat(p.quantity) <= 0);
+        const stockText = isOutOfStock ? 'OUT OF STOCK' : (p.quantity + ' pcs');
+        const display = (p.item_name || p.name) + ' | SN:' + (p.serial_no || '—') + ' | Stock: ' + stockText;
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = display;
@@ -2232,6 +2301,7 @@ function filterQtyStock(query) {
         opt.dataset.category = p.category;
         opt.dataset.itemName = p.item_name || p.name;
         opt.dataset.qty = p.quantity;
+        if (isOutOfStock) opt.style.color = '#dc2626';
         select.appendChild(opt);
     });
 
@@ -2239,10 +2309,11 @@ function filterQtyStock(query) {
         suggDiv.innerHTML = '';
         if (query.length > 0 && filtered.length > 0) {
             filtered.slice(0, 8).forEach(p => {
+                const isOut = (parseFloat(p.quantity) <= 0);
                 const item = document.createElement('div');
                 item.className = 'autocomplete-suggestion-item';
                 item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;background:#fff;';
-                item.innerHTML = '<div><strong style="color:#022c22;">' + (p.item_name || p.name) + '</strong> <span style="font-size:11px;color:#059669;">(' + p.category + ')</span></div><div style="font-size:11px;color:#7a4e0a;">SN: ' + (p.serial_no || '—') + ' | ' + p.quantity + ' pcs</div>';
+                item.innerHTML = '<div><strong style="color:#022c22;">' + (p.item_name || p.name) + '</strong> <span style="font-size:11px;color:#059669;">(' + p.category + ')</span></div><div style="font-size:11px;color:' + (isOut?'#dc2626':'#7a4e0a') + ';">SN: ' + (p.serial_no || '—') + ' | ' + (isOut ? 'OUT OF STOCK' : (p.quantity + ' pcs')) + '</div>';
                 item.onmouseover = function() { this.style.background = '#f5ead0'; };
                 item.onmouseout = function() { this.style.background = '#fff'; };
                 item.onclick = function() {
@@ -2286,7 +2357,11 @@ function onQtyStockChange() {
     rateInput.value = price.toFixed(2);
     qtyInput.value = 1;
     
-    infoDiv.innerHTML = '<strong>' + name + '</strong> Selected. Price per Piece: ₹' + price.toFixed(2) + ' | Available Stock: ' + qty + ' pcs';
+    if (qty <= 0) {
+        infoDiv.innerHTML = '<strong style="color:#dc2626;">' + name + '</strong> | <strong style="color:#dc2626;">❌ OUT OF STOCK (0 pcs available)</strong>';
+    } else {
+        infoDiv.innerHTML = '<strong>' + name + '</strong> Selected. Price per Piece: ₹' + price.toFixed(2) + ' | Available Stock: <strong style="color:#059669;">' + qty + ' pcs</strong>';
+    }
     infoDiv.classList.remove('hidden');
     
     autoQtyTotal();
@@ -2357,6 +2432,24 @@ function submitQtyItem() {
         name = opt.dataset.itemName;
         hsn = '7113';
         qty = parseInt(document.getElementById('qtyCount').value) || 0;
+
+        // Stock pcs validation check
+        const stockQty = parseFloat(opt.dataset.qty) || 0;
+        let existingPcs = 0;
+        items.forEach(it => {
+            if (String(it.product_id) === String(productId)) {
+                existingPcs += (parseFloat(it.pcs) || parseFloat(it.quantity) || 1);
+            }
+        });
+        const totalReqPcs = existingPcs + qty;
+        if (stockQty <= 0) {
+            alert('❌ Out of Stock!\n"' + name + '" is currently out of stock (0 pcs available).');
+            return;
+        }
+        if (totalReqPcs > stockQty) {
+            alert('❌ Exceeds Available Stock!\nOnly ' + stockQty + ' pcs available in stock for "' + name + '", but ' + totalReqPcs + ' pcs requested.');
+            return;
+        }
     } else if (source === 'category') {
         const cat = document.getElementById('qtyCatSelect').value;
         const type = document.getElementById('qtyItemType').value;
@@ -2392,6 +2485,8 @@ function submitQtyItem() {
         hsn: hsn,
         quantity: qty,
         unit: 'pcs',
+        pcs: qty,
+        stock_deduct: qty,
         price: rate,
         base_amount: baseAmount,
         making_charge_pct: imcPct,
@@ -3250,6 +3345,37 @@ document.getElementById('billingForm').addEventListener('submit', function(e) {
     if(items.length === 0) { e.preventDefault(); alert('\u274C Please add at least one product!'); return false; }
     if(!document.getElementById('customerName').value.trim()) { e.preventDefault(); alert('\u274C Please enter customer name!'); return false; }
     if(!document.getElementById('customerMobile').value.trim()) { e.preventDefault(); alert('\u274C Please enter customer mobile number!'); return false; }
+
+    // Aggregate requested stock pieces per product_id
+    const reqPcsMap = {};
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.product_id && item.product_id !== 'other' && !isNaN(item.product_id)) {
+            const pid = String(item.product_id);
+            const reqPcs = parseFloat(item.pcs) || parseFloat(item.stock_deduct) || 1;
+            reqPcsMap[pid] = (reqPcsMap[pid] || 0) + reqPcs;
+        }
+    }
+
+    for (const pid in reqPcsMap) {
+        const reqPcs = reqPcsMap[pid];
+        const prod = ALL_PRODUCTS.find(p => String(p.id) === pid);
+        if (prod) {
+            const availQty = parseFloat(prod.quantity) || 0;
+            const pname = prod.item_name || prod.name;
+            if (availQty <= 0) {
+                e.preventDefault();
+                alert('\u274C Cannot complete invoice!\nProduct "' + pname + '" is OUT OF STOCK.');
+                return false;
+            }
+            if (reqPcs > availQty) {
+                e.preventDefault();
+                alert('\u274C Cannot complete invoice!\nProduct "' + pname + '" has only ' + availQty + ' pcs in stock, but ' + reqPcs + ' pcs requested across your items list.');
+                return false;
+            }
+        }
+    }
+
     if(document.getElementById('paymentMethod').value === 'Split') {
         const grand = parseFloat(document.getElementById('grandTotal').textContent.replace('\u20B9','').replace(/,/g,'')) || 0;
         const cash  = parseFloat(document.getElementById('cashAmount').value) || 0;
