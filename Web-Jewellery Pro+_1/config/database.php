@@ -1,17 +1,20 @@
 <?php
-$host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ? getenv('DB_HOST') : 'localhost');
+$host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ? getenv('DB_HOST') : '127.0.0.1');
 $user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ? getenv('DB_USER') : 'root');
 $password = isset($_ENV['DB_PASSWORD']) ? $_ENV['DB_PASSWORD'] : (getenv('DB_PASSWORD') ? getenv('DB_PASSWORD') : '');
 $database = isset($_ENV['DB_DATABASE']) ? $_ENV['DB_DATABASE'] : (getenv('DB_DATABASE') ? getenv('DB_DATABASE') : 'radhe_shyam_jewellers');
 $port = isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : (getenv('DB_PORT') ? getenv('DB_PORT') : '3306');
 
 // ── Auto-create DB if it doesn't exist (first run setup) ──
-$_tmp_conn = mysqli_connect($host, $user, $password, '', $port);
-if(!$_tmp_conn) {
-    die("MySQL connection failed: " . mysqli_connect_error());
+try {
+    $_tmp_conn = @mysqli_connect($host, $user, $password, '', $port);
+    if($_tmp_conn) {
+        mysqli_query($_tmp_conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        mysqli_close($_tmp_conn);
+    }
+} catch (Throwable $e) {
+    // Ignore initial DB creation check if user lacks global database creation privileges
 }
-mysqli_query($_tmp_conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-mysqli_close($_tmp_conn);
 
 $conn = mysqli_connect($host, $user, $password, $database, $port);
 
