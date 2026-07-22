@@ -398,7 +398,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     }
     $customer_gstin = mysqli_real_escape_string($conn, $_POST['customer_gstin'] ?? '');
     $huid_code = mysqli_real_escape_string($conn, trim($_POST['huid_code'] ?? ''));
-    $created_by = $_SESSION['user_id'];
+    $created_by_val = (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) ? intval($_SESSION['user_id']) : "NULL";
 
     $chk1 = mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'paid_amount'");
     if($chk1 && mysqli_num_rows($chk1) == 0) {
@@ -423,8 +423,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     if(!$col_og) mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN old_gold_amount DECIMAL(10,2) DEFAULT 0");
 
     $invoice_query = "INSERT INTO invoices (invoice_no, customer_name, customer_mobile, customer_address, customer_gstin, gst_type, subtotal, gst_amount, total_amount, payment_status, payment_method, paid_amount, balance_amount, cash_paid, upi_paid, account_paid, due_date, created_by, huid_code, old_gold_amount)
-              VALUES ('$invoice_no', '$customer_name', '$customer_mobile', '$customer_address', '$customer_gstin', '$gst_type', $subtotal, $gst_amount, $total_amount, '$payment_status', '$payment_method', $paid_amount, $balance_amount, $cash_paid, $upi_paid, $account_paid, $due_date, $created_by, '$huid_code', $old_gold_amount)";
-    if(mysqli_query($conn, $invoice_query)) {
+              VALUES ('$invoice_no', '$customer_name', '$customer_mobile', '$customer_address', '$customer_gstin', '$gst_type', $subtotal, $gst_amount, $total_amount, '$payment_status', '$payment_method', $paid_amount, $balance_amount, $cash_paid, $upi_paid, $account_paid, $due_date, $created_by_val, '$huid_code', $old_gold_amount)";
+    $inv_exec = mysqli_query($conn, $invoice_query);
+    if(!$inv_exec) {
+        die("<div style='padding:30px;font-family:sans-serif;background:#fff1f2;color:#991b1b;border:2px solid #f87171;border-radius:12px;margin:40px auto;max-width:650px;'>
+            <h3 style='margin-top:0;'>❌ Invoice Creation Failed</h3>
+            <p><strong>MySQL Error:</strong> " . htmlspecialchars(mysqli_error($conn)) . "</p>
+            <p><a href='billing.php' style='color:#991b1b;font-weight:bold;text-decoration:underline;'>← Back to Billing</a></p>
+        </div>");
+    }
+    if($inv_exec) {
         $last_old_gold_amount = $old_gold_amount;
         $invoice_id = mysqli_insert_id($conn);
         $items = json_decode($_POST['items'], true);
