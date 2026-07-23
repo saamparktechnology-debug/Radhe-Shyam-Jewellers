@@ -12,12 +12,12 @@ require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
 // Example for Gmail: SMTP_HOST='smtp.gmail.com', SMTP_PORT=587, SMTP_SECURE='tls', and use an App Password.
 // The PHP mail() fallback only works if your local Windows/XAMPP environment has a working SMTP relay configured
 // in php.ini via SMTP and smtp_port. If not, set SMTP credentials above and use PHPMailer.
-define('MAIL_FROM_ADDRESS', 'Subhapatra169@gmail.com');
+define('MAIL_FROM_ADDRESS', 'saamparktechnologyresearch@gmail.com');
 define('MAIL_FROM_NAME', 'RADHE SHYAM JEWELLERS');
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'Subhapatra169@gmail.com');
-define('SMTP_PASSWORD', 'mbuwmsypcdvjomah');
+define('SMTP_USERNAME', 'saamparktechnologyresearch@gmail.com');
+define('SMTP_PASSWORD', 'vsenpeqdgkaqgnze');
 define('SMTP_SECURE', 'tls'); // tls or ssl
 
 define('SMTP_DEBUG', 0);
@@ -38,7 +38,7 @@ function sendSMTPMail($to, $subject, $message) {
         return ['success' => false, 'message' => $errorMessage];
     }
 
-    $passwords = array_unique([SMTP_PASSWORD, 'mbuwmsypcdvjomah', 'mbuw msyp cdvj omah', 'fbkjcuiduiaozyee']);
+    $passwords = array_unique([SMTP_PASSWORD, 'vsenpeqdgkaqgnze', 'vsen peqd gkaq gnze']);
     $configs = [
         ['port' => 587, 'secure' => PHPMailer::ENCRYPTION_STARTTLS],
         ['port' => 465, 'secure' => PHPMailer::ENCRYPTION_SMTPS],
