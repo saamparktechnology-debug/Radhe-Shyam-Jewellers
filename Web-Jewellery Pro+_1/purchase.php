@@ -265,7 +265,7 @@ h1,h2,h3,.gold-font{font-family:'Poppins',sans-serif;font-weight:700;}
 .sidebar-nav::-webkit-scrollbar{width:4px;}.sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:4px;}
 .sidebar-logo{padding:22px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.18);display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .sidebar-logo img{width:44px;height:44px;object-fit:contain;border-radius:50%;background:rgba(255,255,255,0.1);padding:3px;flex-shrink:0;}
-.sidebar-logo-text h2{color:#fff;font-size:13px;font-weight:700;font-family:'Playfair Display',serif;letter-spacing:.5px;}
+.sidebar-logo-text h2{color:#fff;font-size:13px;font-weight:700;font-family:'Poppins',serif;letter-spacing:.5px;}
 .sidebar-logo-text p{color:rgba(255,255,255,0.65);font-size:10px;margin-top:1px;}
 .sidebar-nav{flex:1;padding:10px 0;overflow-y:auto;overflow-x:hidden;}
 .sidebar-section-label{padding:10px 20px 4px;color:rgba(255,255,255,0.45);font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;position:sticky;top:0;background: #011921; color: #f5c842;z-index:10;}
@@ -298,7 +298,7 @@ nav.nav-gold span{color:#fff!important;}
 
 /* ── Form styles ── */
 .form-card{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.08);border:1px solid rgba(214,139,22,0.12);padding:28px;}
-.section-heading{font-family:'Playfair Display',serif;color:#800020;font-size:15px;font-weight:700;border-bottom:2px solid rgba(214,139,22,0.25);padding-bottom:8px;margin-bottom:18px;letter-spacing:.3px;}
+.section-heading{font-family:'Poppins',serif;color:#800020;font-size:15px;font-weight:700;border-bottom:2px solid rgba(214,139,22,0.25);padding-bottom:8px;margin-bottom:18px;letter-spacing:.3px;}
 .field-label{display:block;color:#7a4e0a;font-size:12px;font-weight:600;margin-bottom:5px;letter-spacing:.3px;}
 .field-label .req{color:#dc2626;}
 .form-input{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(148,163,184,0.3);background:#fbfaf8;color:#334155;font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s;}
@@ -381,7 +381,7 @@ nav.nav-gold span{color:#fff!important;}
 <!-- TOPNAV -->
 <nav class="nav-gold shadow-lg sticky top-0 z-50" style="margin-left:240px;">
     <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-        <h1 style="color:#fff;font-family:'Playfair Display',serif;font-size:18px;font-weight:700;">
+        <h1 style="color:#fff;font-family:'Poppins',serif;font-size:18px;font-weight:700;">
             <i class="fas fa-shopping-cart mr-2"></i>Purchase Entry
         </h1>
         <div class="flex items-center gap-4">

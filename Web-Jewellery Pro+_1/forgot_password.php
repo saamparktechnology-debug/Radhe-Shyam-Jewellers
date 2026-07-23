@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_password'])) {
         } else {
             $hashed    = password_hash($new_pass, PASSWORD_DEFAULT);
             $email_esc = mysqli_real_escape_string($conn, $email);
-            $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE email='$email_esc'");
+            $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE email='$email_esc' OR mobile='$email_esc'");
 
             if ($upd) {
                 unset($_SESSION['fp_step'], $_SESSION['fp_email'],

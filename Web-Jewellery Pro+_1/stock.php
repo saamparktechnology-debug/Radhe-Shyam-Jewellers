@@ -148,7 +148,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
             font-size: 13px;
             font-weight: 700;
             line-height: 1.3;
-            font-family: 'Playfair Display', serif;
+            font-family: 'Poppins', serif;
             letter-spacing: 0.5px;
         }
 

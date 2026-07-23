@@ -8,7 +8,7 @@ require_once 'config/company_config.php';
 
 $is_logged_in = isset($_SESSION['user_id']);
 $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
-$logo_paths = ['assets/images/radhey_shyam_logo.png', 'images/radhey_shyam_logo.png', 'radhey_shyam_logo.png'];
+$logo_paths = ['assets/images/radhey_shyam_logo.png', 'images/radhey_shyam_logo.png', 'radhey_shyam_logo.png', 'radhey shyam logo.png'];
 
 $daily_sales = [];
 $top_products = [];
@@ -182,7 +182,7 @@ if($is_logged_in) {
             font-size: 13px;
             font-weight: 700;
             line-height: 1.3;
-            font-family: 'Playfair Display', serif;
+            font-family: 'Poppins', serif;
             letter-spacing: 0.5px;
         }
 
@@ -437,12 +437,14 @@ if($is_logged_in) {
         }
 
         .floating-logo img {
-            width: 160px !important;
-            height: 160px !important;
+            width: 220px !important;
+            height: 220px !important;
+            max-width: 85vw !important;
+            max-height: 220px !important;
             object-fit: contain;
             display: block;
             margin: 0 auto !important;
-            filter: drop-shadow(0 8px 24px rgba(181,115,14,0.4));
+            filter: drop-shadow(0 12px 32px rgba(214,139,22,0.45));
         }
 
         /* ========== HERO ========== */
@@ -466,7 +468,7 @@ if($is_logged_in) {
             background: linear-gradient(135deg, #800020, #c9a96e, #d68b16);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            font-family: 'Playfair Display', serif;
+            font-family: 'Poppins', serif;
         }
 
         .cursor {
@@ -739,17 +741,17 @@ if($is_logged_in) {
         }
     }
 
-    const texts = ["RADHE SHYAM JEWELLERS"];
+    const texts = ["RADHE SHYAM JEWELLERS", "PREMIUM JEWELLERY COLLECTION", "FINE GOLD & DIAMOND JEWELLERY"];
     let textIndex = 0, charIndex = 0, isDeleting = false, typingSpeed = 100;
 
     function typeEffect() {
         const el = document.getElementById('typingText');
         if(!el) return;
         const cur = texts[textIndex];
-        if(isDeleting) { el.innerHTML = cur.substring(0, charIndex - 1); charIndex--; typingSpeed = 50; }
-        else { el.innerHTML = cur.substring(0, charIndex + 1); charIndex++; typingSpeed = 100; }
-        if(!isDeleting && charIndex === cur.length) { isDeleting = true; typingSpeed = 2000; }
-        else if(isDeleting && charIndex === 0) { isDeleting = false; textIndex = 0; typingSpeed = 500; }
+        if(isDeleting) { el.textContent = cur.substring(0, charIndex - 1); charIndex--; typingSpeed = 40; }
+        else { el.textContent = cur.substring(0, charIndex + 1); charIndex++; typingSpeed = 90; }
+        if(!isDeleting && charIndex === cur.length) { isDeleting = true; typingSpeed = 2500; }
+        else if(isDeleting && charIndex === 0) { isDeleting = false; textIndex = (textIndex + 1) % texts.length; typingSpeed = 400; }
         setTimeout(typeEffect, typingSpeed);
     }
 
@@ -783,14 +785,15 @@ if($is_logged_in) {
         const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
         const hasVisited = sessionStorage.getItem('visited');
 
+        createJewelSparkles();
+        setTimeout(typeEffect, 300);
+
         if (!hasVisited || isReload) {
             sessionStorage.setItem('visited', 'true');
-            createJewelSparkles();
-            setTimeout(typeEffect, 600);
             setTimeout(function() {
                 const ov = document.getElementById('loadingOverlay');
                 if(ov) { ov.style.opacity = '0'; ov.style.visibility = 'hidden'; setTimeout(()=>ov.style.display='none', 500); }
-            }, 2000);
+            }, 1800);
         } else {
         const ov = document.getElementById('loadingOverlay');
             if(ov) { ov.style.display = 'none'; }
@@ -828,7 +831,7 @@ if($is_logged_in) {
         </div>
 
         <!-- Title -->
-        <div style="color:#d68b16;font-size:22px;letter-spacing:6px;font-family:'Playfair Display',serif;margin-bottom:6px;animation:titleGold 2s ease infinite alternate;">RADHE SHYAM JEWELLERS</div>
+        <div style="color:#d68b16;font-size:22px;letter-spacing:6px;font-family:'Poppins',serif;margin-bottom:6px;animation:titleGold 2s ease infinite alternate;">RADHE SHYAM JEWELLERS</div>
         <p style="color:rgba(201,169,110,0.7);font-size:10px;letter-spacing:4px;text-transform:uppercase;margin-bottom:24px;">Crafting Timeless Elegance</p>
 
         <!-- Progress bar -->
@@ -963,7 +966,7 @@ if($is_logged_in) {
                 if(!$logo_found) echo '<i class="fas fa-gem" style="color:#ffd700;font-size:24px;"></i>';
                 ?>
                 <div>
-                    <h1 class="text-sm sm:text-lg font-bold tracking-wide" style="color:#fff;font-family:\'Playfair Display\',serif;line-height:1.2;margin:0;">RADHE SHYAM JEWELLERS</h1>
+                    <h1 class="text-sm sm:text-lg font-bold tracking-wide" style="color:#fff;font-family:\'Poppins\',serif;line-height:1.2;margin:0;">RADHE SHYAM JEWELLERS</h1>
                     <p class="text-[10px] hidden sm:block" style="color:rgba(255,255,255,0.75);margin:0;letter-spacing:0.5px;">Premium Jewellery Management</p>
                 </div>
             </div>
@@ -1008,16 +1011,16 @@ if($is_logged_in) {
             $logo_found = false;
             foreach($logo_paths as $path) {
                 if(file_exists($path)) {
-                    echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="height:38px;width:auto;max-width:44px;object-fit:contain;display:inline-block;margin-right:8px;">';
+                    echo '<img src="'.$path.'" alt="RADHE SHYAM JEWELLERS Logo" style="width:220px;height:220px;max-width:85vw;max-height:220px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 12px 32px rgba(214,139,22,0.45));">';
                     $logo_found = true; break;
                 }
             }
-            if(!$logo_found) echo '<i class="fas fa-gem" style="font-size:80px;color:#d68b16;"></i>';
+            if(!$logo_found) echo '<i class="fas fa-gem" style="font-size:110px;color:#d68b16;filter:drop-shadow(0 12px 32px rgba(214,139,22,0.45));"></i>';
             ?>
         </div>
 
         <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mt-4 mb-4" style="min-height:1.2em;">
-            <span id="typingText" class="typing-text"></span><span class="cursor"></span>
+            <span id="typingText" class="typing-text">RADHE SHYAM JEWELLERS</span><span class="cursor"></span>
         </h1>
 
         <p class="text-base sm:text-lg md:text-xl mb-8 max-w-2xl mx-auto" style="color:#7a4e0a;">

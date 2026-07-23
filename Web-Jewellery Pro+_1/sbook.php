@@ -20,7 +20,7 @@ $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap');
 
         * { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
-        h1,h2,h3,.gold-font { font-family: 'Playfair Display', serif; }
+        h1,h2,h3,.gold-font { font-family: 'Poppins', serif; }
 
         .sidebar {
             position: fixed;
@@ -65,7 +65,7 @@ $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
             font-size: 13px;
             font-weight: 700;
             line-height: 1.3;
-            font-family: 'Playfair Display', serif;
+            font-family: 'Poppins', serif;
             letter-spacing: 0.5px;
         }
 
@@ -264,7 +264,7 @@ $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
         @media (min-width: 769px) { .mobile-burger { display: none !important; } }
 
         .hero-with-logo { text-align: center; }
-        .typing-text { background: linear-gradient(135deg, #800020, #c9a96e, #d68b16); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: 'Playfair Display', serif; }
+        .typing-text { background: linear-gradient(135deg, #800020, #c9a96e, #d68b16); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: 'Poppins', serif; }
         .cursor { display: inline-block; width: 3px; height: 1em; background: #d68b16; margin-left: 4px; vertical-align: middle; animation: blink 0.8s infinite; }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 

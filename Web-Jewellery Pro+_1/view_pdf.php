@@ -29,9 +29,13 @@ if(!$inv_res || mysqli_num_rows($inv_res) == 0) {
 $inv = mysqli_fetch_assoc($inv_res);
 
 // Fetch invoice items
+$col_unit = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'unit'")) > 0;
+if(!$col_unit) @mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN unit VARCHAR(20) DEFAULT 'g'");
+
 $items_res = mysqli_query($conn, "
     SELECT ii.invoice_id, ii.product_id, ii.quantity, ii.price, ii.total,
-           ii.making_charge, ii.hallmark, ii.discount, ii.unit,
+           ii.making_charge, ii.hallmark, ii.discount,
+           'g' AS unit,
            COALESCE(ii.product_name, p.name) AS product_name,
            COALESCE(ii.serial_no, p.serial_no) AS serial_no,
            COALESCE(ii.huid_code, p.huid_code) AS huid_code,

@@ -472,7 +472,7 @@ h1, h2, h3, .gold-font { font-family: 'Poppins', sans-serif; font-weight: 700; }
     font-size: 13px;
     font-weight: 700;
     line-height: 1.3;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Poppins', serif;
     letter-spacing: 0.5px;
 }
 
@@ -935,7 +935,7 @@ function closeSidebar() {
 
     <!-- Header -->
     <div class="page-heading">
-        <h2 class="text-2xl sm:text-3xl font-bold" style="color:#800020;font-family:'Playfair Display',serif;">
+        <h2 class="text-2xl sm:text-3xl font-bold" style="color:#800020;font-family:'Poppins',serif;">
             <i class="fas fa-list mr-2" style="color:#d68b16;"></i> Customers with Due Amounts
         </h2>
         <p>Pending invoices — update amount or due date, then save. Send email reminders directly.</p>

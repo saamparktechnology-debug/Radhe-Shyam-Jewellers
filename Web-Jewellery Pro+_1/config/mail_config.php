@@ -17,7 +17,7 @@ define('MAIL_FROM_NAME', 'RADHE SHYAM JEWELLERS');
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
 define('SMTP_USERNAME', 'Subhapatra169@gmail.com');
-define('SMTP_PASSWORD', 'fbkjcuiduiaozyee');
+define('SMTP_PASSWORD', 'mbuwmsypcdvjomah');
 define('SMTP_SECURE', 'tls'); // tls or ssl
 
 define('SMTP_DEBUG', 0);

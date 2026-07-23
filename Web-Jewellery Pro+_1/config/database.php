@@ -27,7 +27,7 @@ $port = isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : (getenv('DB_PORT') ? getenv
 // ── Smart connection with password fallbacks ──
 $conn = false;
 $passwords_to_try = array_unique([$password, 'RootPass123', '', 'root', 'radhe#123', '123456']);
-$hosts_to_try     = array_unique([$host, '127.0.0.1', 'localhost']);
+$hosts_to_try     = array_unique([$host, '127.0.0.1']);
 
 foreach ($hosts_to_try as $h) {
     foreach ($passwords_to_try as $p) {
@@ -84,20 +84,16 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_users);
 
-// Always ensure admin users exist with exact password hashes
-$pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
+// Ensure default admin users exist if not already created
 $chk_subha = mysqli_query($conn, "SELECT id FROM users WHERE email = 'subhapatra169@gmail.com'");
-if ($chk_subha && mysqli_num_rows($chk_subha) > 0) {
-    mysqli_query($conn, "UPDATE users SET password = '$pass_hash1' WHERE email = 'subhapatra169@gmail.com'");
-} else {
+if ($chk_subha && mysqli_num_rows($chk_subha) == 0) {
+    $pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
     mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1')");
 }
 
-$pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
 $chk_supriya = mysqli_query($conn, "SELECT id FROM users WHERE email = 'hiisupriya@gmail.com'");
-if ($chk_supriya && mysqli_num_rows($chk_supriya) > 0) {
-    mysqli_query($conn, "UPDATE users SET password = '$pass_hash2' WHERE email = 'hiisupriya@gmail.com'");
-} else {
+if ($chk_supriya && mysqli_num_rows($chk_supriya) == 0) {
+    $pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
     mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2')");
 }
 

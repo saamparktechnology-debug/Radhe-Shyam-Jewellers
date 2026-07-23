@@ -426,6 +426,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     $col_og = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'old_gold_amount'")) > 0;
     if(!$col_og) mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN old_gold_amount DECIMAL(10,2) DEFAULT 0");
 
+    // Auto-drop foreign key constraints on invoice_items to allow zero-stock product auto-deletion
+    $fk_check = mysqli_query($conn, "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoice_items' AND REFERENCED_TABLE_NAME IS NOT NULL");
+    if ($fk_check) {
+        while ($fk_row = mysqli_fetch_assoc($fk_check)) {
+            $c_name = $fk_row['CONSTRAINT_NAME'];
+            @mysqli_query($conn, "ALTER TABLE invoice_items DROP FOREIGN KEY `$c_name`");
+        }
+    }
+
     // ── STOCK VALIDATION: Pre-check available stock pieces before creating invoice ──
     $raw_items = json_decode($_POST['items'] ?? '[]', true);
     if (is_array($raw_items)) {
@@ -565,7 +574,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap');
         * { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
-        h1,h2,h3,.gold-font { font-family: 'Playfair Display', serif; }
+        h1,h2,h3,.gold-font { font-family: 'Poppins', serif; }
 
         /* SIDEBAR */
         .sidebar {
@@ -583,7 +592,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
             display: flex; align-items: center; gap: 12px; flex-shrink: 0;
         }
         .sidebar-logo img { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; background: rgba(255,255,255,0.1); }
-        .sidebar-logo-text h2 { color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; font-family: 'Playfair Display', serif; }
+        .sidebar-logo-text h2 { color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; font-family: 'Poppins', serif; }
         .sidebar-logo-text p { color: rgba(255,255,255,0.65); font-size: 10px; margin-top: 1px; }
         .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; overflow-x: hidden; }
         .sidebar-section-label { padding: 10px 20px 4px; color: rgba(255,255,255,0.45); font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; position: sticky; top: 0; background: #011921; color: #f5c842; z-index: 10; }
@@ -877,7 +886,7 @@ window.addEventListener('load', function() {
                         <span></span><span></span><span></span>
                     </div>
                 </div>
-                <span class="font-bold text-white text-sm hidden sm:inline" style="font-family:'Playfair Display',serif;">
+                <span class="font-bold text-white text-sm hidden sm:inline" style="font-family:'Poppins',serif;">
                     <i class="fas fa-receipt mr-2"></i>Billing
                 </span>
             </div>
@@ -908,7 +917,7 @@ window.addEventListener('load', function() {
 
     <!-- Page Title -->
     <div class="mb-6">
-        <h2 class="text-2xl sm:text-3xl font-bold" style="color:#800020;font-family:'Playfair Display',serif;">
+        <h2 class="text-2xl sm:text-3xl font-bold" style="color:#800020;font-family:'Poppins',serif;">
             <i class="fas fa-receipt mr-2" style="color:#d68b16;"></i> Billing
         </h2>
         <p class="text-sm mt-1" style="color:#7a4e0a;">Create invoices and manage customer transactions</p>
@@ -923,7 +932,7 @@ window.addEventListener('load', function() {
             <div style="display:flex;align-items:center;gap:10px;">
                 <span class="bell-ring" style="font-size:22px;color:#fff;" title="Due Today">&#128276;</span>
                 <div style="flex:1;min-width:0;">
-                    <div style="color:#fff;font-weight:700;font-size:15px;font-family:'Playfair Display',serif;">
+                    <div style="color:#fff;font-weight:700;font-size:15px;font-family:'Poppins',serif;">
                         Payment Due Today
                     </div>
                     <div style="color:rgba(255,255,255,0.78);font-size:11px;">
@@ -1058,7 +1067,7 @@ window.addEventListener('load', function() {
 .payment-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;}
 .payment-modal{background:#fff;border-radius:12px;width:360px;max-width:90%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.2);}
 .payment-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-.payment-modal-header h3{margin:0;font-family:'Playfair Display',serif;color:#991b1b;}
+.payment-modal-header h3{margin:0;font-family:'Poppins',serif;color:#991b1b;}
 .payment-modal-header button{background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;}
 .pm-rows div{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:#374151;}
 #pmAmountInput{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:15px;margin:8px 0;box-sizing:border-box;}
@@ -1189,7 +1198,7 @@ function submitPayment() {
         <!-- Billing Form -->
         <div class="lg:col-span-2">
             <div class="jewel-card p-4 sm:p-6">
-                <h2 class="text-xl sm:text-2xl font-bold mb-5" style="color:#800020;font-family:'Playfair Display',serif;">
+                <h2 class="text-xl sm:text-2xl font-bold mb-5" style="color:#800020;font-family:'Poppins',serif;">
                     <?php foreach($logo_paths as $path) { if(file_exists($path)) { echo '<img src="'.$path.'" style="width:32px;height:32px;object-fit:cover;border-radius:50%;border:1px solid #d68b16;display:inline-block;vertical-align:middle;margin-right:8px;">'; break; } } ?>
                     Create New Invoice
                 </h2>
@@ -1592,7 +1601,7 @@ function submitPayment() {
                     <div class="mt-6">
                         <button type="submit" name="create_invoice" id="submitBtn"
                             class="btn-gold w-full py-3 rounded-xl font-bold text-lg"
-                            style="background:linear-gradient(135deg,#800020,#d68b16);font-family:'Playfair Display',serif;letter-spacing:1px;">
+                            style="background:linear-gradient(135deg,#800020,#d68b16);font-family:'Poppins',serif;letter-spacing:1px;">
                             &#10024; Generate Invoice &#10024;
                         </button>
                     </div>
@@ -1605,7 +1614,7 @@ function submitPayment() {
             <!-- My Shop Rates -->
             <div class="jewel-card p-4 sm:p-5 mt-4">
                 <div class="flex items-center justify-between mb-1">
-                    <h3 class="text-base font-bold" style="color:#800020;font-family:'Playfair Display',serif;">
+                    <h3 class="text-base font-bold" style="color:#800020;font-family:'Poppins',serif;">
                         <i class="fas fa-store mr-2" style="color:#d68b16;"></i> My Shop Rates
                     </h3>
                     <span class="text-xs px-2 py-1 rounded-lg" id="shopRateSaveStatus"
@@ -1667,7 +1676,7 @@ function submitPayment() {
             <!-- Live Metal Rates -->
             <div class="jewel-card p-4 sm:p-5 mt-4">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-base font-bold" style="color:#800020;font-family:'Playfair Display',serif;">
+                    <h3 class="text-base font-bold" style="color:#800020;font-family:'Poppins',serif;">
                         <i class="fas fa-coins mr-2" style="color:#d68b16;"></i> Live Metal Rates
                     </h3>
                     <div class="flex items-center gap-2">
@@ -1716,7 +1725,7 @@ function submitPayment() {
             </div>
          <!-- EMI Calculator -->
             <div class="jewel-card p-4 sm:p-6">
-                <h3 class="text-lg font-bold mb-4" style="color:#800020;font-family:'Playfair Display',serif;">
+                <h3 class="text-lg font-bold mb-4" style="color:#800020;font-family:'Poppins',serif;">
                     <i class="fas fa-calculator mr-2" style="color:#d68b16;"></i> EMI Calculator
                 </h3>
                 <div class="space-y-3">

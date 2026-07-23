@@ -450,7 +450,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
 
         .sidebar-logo { padding: 22px 18px 16px; border-bottom: 1px solid rgba(255,255,255,0.18); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .sidebar-logo img { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; background: rgba(255,255,255,0.1); flex-shrink: 0; }
-        .sidebar-logo-text h2 { color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; font-family: 'Playfair Display', serif; letter-spacing: 0.5px; }
+        .sidebar-logo-text h2 { color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; font-family: 'Poppins', serif; letter-spacing: 0.5px; }
         .sidebar-logo-text p  { color: rgba(255,255,255,0.65); font-size: 10px; margin-top: 1px; }
 
         .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; overflow-x: hidden; }

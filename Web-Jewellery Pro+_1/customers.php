@@ -168,7 +168,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
         }
         .sidebar-logo-text h2 {
             color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3;
-            font-family: 'Playfair Display', serif; letter-spacing: 0.5px;
+            font-family: 'Poppins', serif; letter-spacing: 0.5px;
         }
         .sidebar-logo-text p { color: rgba(255,255,255,0.65); font-size: 10px; margin-top: 1px; }
 
@@ -866,7 +866,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#7a4e0a,#d68b16);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
             <div>
-                <div style="color:#fff;font-size:16px;font-weight:700;font-family:'Playfair Display',serif;" id="ohCustomerName">Customer Orders</div>
+                <div style="color:#fff;font-size:16px;font-weight:700;font-family:'Poppins',serif;" id="ohCustomerName">Customer Orders</div>
                 <div style="color:rgba(255,255,255,0.75);font-size:11px;margin-top:2px;" id="ohCustomerMobile"></div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
