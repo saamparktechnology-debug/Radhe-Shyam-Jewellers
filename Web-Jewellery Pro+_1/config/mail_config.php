@@ -38,31 +38,54 @@ function sendSMTPMail($to, $subject, $message) {
         return ['success' => false, 'message' => $errorMessage];
     }
 
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USERNAME;
-        $mail->Password   = SMTP_PASSWORD;
-        $mail->SMTPSecure = SMTP_SECURE === 'ssl' ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
-        $mail->SMTPDebug  = SMTP_DEBUG;
+    $passwords = array_unique([SMTP_PASSWORD, 'mbuwmsypcdvjomah', 'mbuw msyp cdvj omah', 'fbkjcuiduiaozyee']);
+    $configs = [
+        ['port' => 587, 'secure' => PHPMailer::ENCRYPTION_STARTTLS],
+        ['port' => 465, 'secure' => PHPMailer::ENCRYPTION_SMTPS],
+    ];
 
-        $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
-        $mail->addAddress($to);
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body    = $message;
-        $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<p>', '</p>'], ' ', $message));
+    $lastErrorMsg = '';
 
-        $mail->send();
-        return ['success' => true, 'message' => 'Message sent'];
-    } catch (Exception $e) {
-        $errorMessage = $mail->ErrorInfo ?: $e->getMessage();
-        error_log('[mail_config] Mail error: ' . $errorMessage);
-        return ['success' => false, 'message' => $errorMessage];
+    foreach ($configs as $cfg) {
+        foreach ($passwords as $pwd) {
+            $mail = new PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host       = SMTP_HOST;
+                $mail->SMTPAuth   = true;
+                $mail->Username   = SMTP_USERNAME;
+                $mail->Password   = $pwd;
+                $mail->SMTPSecure = $cfg['secure'];
+                $mail->Port       = $cfg['port'];
+                $mail->SMTPDebug  = SMTP_DEBUG;
+                $mail->Timeout    = 10;
+
+                // Bypass SSL peer verification issues on VPS
+                $mail->SMTPOptions = array(
+                    'ssl' => array(
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    )
+                );
+
+                $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+                $mail->addAddress($to);
+                $mail->isHTML(true);
+                $mail->Subject = $subject;
+                $mail->Body    = $message;
+                $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<p>', '</p>'], ' ', $message));
+
+                $mail->send();
+                return ['success' => true, 'message' => 'Message sent'];
+            } catch (Exception $e) {
+                $lastErrorMsg = $mail->ErrorInfo ?: $e->getMessage();
+                error_log('[mail_config] Attempt failed (' . $cfg['port'] . '): ' . $lastErrorMsg);
+            }
+        }
     }
+
+    return ['success' => false, 'message' => $lastErrorMsg];
 }
 ?>
 
