@@ -337,7 +337,26 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     $customer_address = mysqli_real_escape_string($conn, $_POST['customer_address'] ?? '');
     $customer_email   = mysqli_real_escape_string($conn, $_POST['customer_email'] ?? '');
     $raw_gst_type     = strtolower(trim($_POST['gst_type'] ?? 'non_gst'));
-    $gst_type         = mysqli_real_escape_string($conn, $raw_gst_type);
+    $gst_amount       = floatval($_POST['gst_amount'] ?? 0);
+
+    // Auto-detect if invoice contains GST items (3% / 18%)
+    $has_gst_item = false;
+    $submitted_items = json_decode($_POST['items'] ?? '[]', true);
+    if (is_array($submitted_items)) {
+        foreach ($submitted_items as $s_item) {
+            $gt = $s_item['gst_type'] ?? 'non_gst';
+            if ($gt === 'gst_3' || $gt === 'gst_18' || $gt === 'gst') {
+                $has_gst_item = true;
+                break;
+            }
+        }
+    }
+
+    if ($gst_amount > 0 || $has_gst_item || $raw_gst_type === 'gst') {
+        $gst_type = 'gst';
+    } else {
+        $gst_type = 'non_gst';
+    }
     $subtotal         = floatval($_POST['subtotal']);
     $making_charge    = floatval($_POST['making_charge'] ?? 0);
     $hallmark         = floatval($_POST['hallmark'] ?? 0);
@@ -507,6 +526,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
         if(!$col_item_hm) mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN hallmark DECIMAL(10,2) DEFAULT 0");
         $col_item_disc = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'discount'")) > 0;
         if(!$col_item_disc) mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN discount DECIMAL(10,2) DEFAULT 0");
+        $col_item_gst_type = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'gst_type'")) > 0;
+        if(!$col_item_gst_type) mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN gst_type VARCHAR(20) DEFAULT 'non_gst'");
 
         if(is_array($items)) {
             foreach($items as $item) {
@@ -518,13 +539,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
                 $item_making_charge_pct = floatval($item['making_charge_pct'] ?? 0);
                 $item_hallmark      = floatval($item['hallmark'] ?? 0);
                 $item_discount      = floatval($item['discount'] ?? 0);
+                $item_gst_type_val  = mysqli_real_escape_string($conn, trim($item['gst_type'] ?? 'non_gst'));
                 $manual_name = mysqli_real_escape_string($conn, trim($item['name'] ?? $item['product'] ?? ''));
                 $manual_serial = mysqli_real_escape_string($conn, trim($item['serial'] ?? $item['serial_no'] ?? ''));
                 $manual_huid = mysqli_real_escape_string($conn, trim($item['huid_code'] ?? $item['huid'] ?? ''));
                 $manual_hsn = mysqli_real_escape_string($conn, trim($item['hsn'] ?? $item['hsn_code'] ?? ''));
 
                 if($product_id === 'other' || !is_numeric($product_id)) {
-                    $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount) VALUES ($invoice_id, NULL, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount)";
+                    $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount, gst_type) VALUES ($invoice_id, NULL, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount, '".$item_gst_type_val."')";
                     mysqli_query($conn, $item_query);
                     continue;
                 }
@@ -532,8 +554,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
                 $pcs_deduct = floatval($item['pcs'] ?? $item['stock_deduct'] ?? 1);
                 if($pcs_deduct <= 0) $pcs_deduct = 1;
 
-                $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount)
-                               VALUES ($invoice_id, $pid, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount)";
+                $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount, gst_type)
+                               VALUES ($invoice_id, $pid, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount, '".$item_gst_type_val."')";
                 mysqli_query($conn, $item_query);
 
                 // 1. Deduct piece count from products.quantity
@@ -1237,7 +1259,7 @@ function submitPayment() {
                         <div class="sm:col-span-2">
                             <label class="block mb-1 text-sm font-semibold" style="color:#7a4e0a;">Address</label>
                             <input type="text" name="customer_address" id="customerAddress"
-                                class="jewel-input w-full rounded-lg px-3 py-2 text-sm" placeholder="Customer Address">
+                                class="jewel-input w-full rounded-lg px-3 py-2 text-sm" placeholder="India, West Bengal">
                         </div>
                         <div>
                             <label class="block mb-1 text-sm font-semibold" style="color:#7a4e0a;">Email <span style="color:#9ca3af;font-size:11px;">(Optional, required for reminder email)</span></label>
@@ -1479,6 +1501,7 @@ function submitPayment() {
                     </div>
 
                     <!-- Hidden form fields -->
+                    <input type="hidden" name="gst_type" id="hiddenGstType" value="non_gst">
                     <input type="hidden" name="subtotal" id="hiddenSubtotal" value="0">
                     <input type="hidden" name="gst_amount" id="hiddenGst" value="0">
                     <input type="hidden" name="total_amount" id="hiddenTotal" value="0">
@@ -1883,6 +1906,7 @@ function filterGramStock(query) {
         opt.dataset.price = p.price;
         opt.dataset.name = p.name;
         opt.dataset.serial = p.serial_no;
+        opt.dataset.huid = p.huid_code || '';
         opt.dataset.category = p.category;
         opt.dataset.itemName = p.item_name || p.name;
         opt.dataset.qty = p.quantity;
@@ -2144,7 +2168,7 @@ function submitGramItem() {
     let productId = 'other';
     let name = '';
     let itemType = '';
-    let hsn = '7108';
+    let hsn = '0';
     let weight = 0;
     const rate10g = parseFloat(document.getElementById('gramRate').value) || 0;
     const qty = parseFloat(document.getElementById('gramQty')?.value) || 1;
@@ -2155,7 +2179,7 @@ function submitGramItem() {
         if (!opt || !opt.value) { alert('Please select a product from stock.'); return; }
         productId = opt.value;
         name = opt.dataset.itemName;
-        hsn = '7108';
+        hsn = '0';
         weight = parseFloat(document.getElementById('gramWeight').value) || 0;
 
         // Stock pcs validation check
@@ -2247,7 +2271,8 @@ function submitGramItem() {
         gst_type: igst,
         is_manual: (source === 'manual'),
         is_item_only: (source === 'category'),
-        serial_no: (source === 'stock') ? document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex].dataset.serial : ''
+        serial_no: (source === 'stock') ? (document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex]?.dataset.serial || '') : '',
+        huid_code: (source === 'stock') ? (document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex]?.dataset.huid || '') : ''
     });
     
     updateItemsList();
@@ -2307,6 +2332,7 @@ function filterQtyStock(query) {
         opt.dataset.price = p.price;
         opt.dataset.name = p.name;
         opt.dataset.serial = p.serial_no;
+        opt.dataset.huid = p.huid_code || '';
         opt.dataset.category = p.category;
         opt.dataset.itemName = p.item_name || p.name;
         opt.dataset.qty = p.quantity;
@@ -2429,7 +2455,7 @@ function submitQtyItem() {
     let productId = 'other';
     let name = '';
     let itemType = '';
-    let hsn = '7113';
+    let hsn = '0';
     let qty = 0;
     let rate = parseFloat(document.getElementById('qtyRate').value) || 0;
     
@@ -2439,7 +2465,7 @@ function submitQtyItem() {
         if (!opt || !opt.value) { alert('Please select a product from stock.'); return; }
         productId = opt.value;
         name = opt.dataset.itemName;
-        hsn = '7113';
+        hsn = '0';
         qty = parseInt(document.getElementById('qtyCount').value) || 0;
 
         // Stock pcs validation check
@@ -2506,7 +2532,8 @@ function submitQtyItem() {
         gst_type: igst,
         is_manual: (source === 'manual'),
         is_item_only: (source === 'category'),
-        serial_no: (source === 'stock') ? document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex].dataset.serial : ''
+        serial_no: (source === 'stock') ? (document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex]?.dataset.serial || '') : '',
+        huid_code: (source === 'stock') ? (document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex]?.dataset.huid || '') : ''
     });
     
     updateItemsList();
@@ -2582,12 +2609,14 @@ function updateItemsList() {
         const mcValDisp = (mcPct > 0) ? mcPct : '';
         const hmValDisp = (hm > 0) ? hm : '';
         const discValDisp = (disc > 0) ? disc : '';
+        const serialDisp = (item.serial_no && item.serial_no !== item.huid_code) ? '<div style="color:#9ca3af;font-size:10px;">SN: ' + htmlEsc(item.serial_no) + '</div>' : '';
+        const huidDisp = item.huid_code ? '<div style="color:#7a4e0a;font-size:10px;font-weight:600;">HUID: ' + htmlEsc(item.huid_code) + '</div>' : '';
         const chargeInputStyle = 'width:60px;padding:3px 4px;border:1px solid #e5c98a;border-radius:5px;font-size:11px;text-align:right;';
         html += '<tr>' +
             '<td class="px-2 py-2 text-xs text-center" style="color:#9ca3af;">' + (idx+1) + '</td>' +
             '<td class="px-2 py-2 text-xs" style="color:#374151;">' + icon + ' ' + htmlEsc(item.name) +
                 (item.item_type ? '<span style="color:#b5730e;font-size:10px;"> [' + htmlEsc(item.item_type) + ']</span>' : '') +
-                badge + '<div style="color:#9ca3af;font-size:10px;">HSN: ' + (item.hsn || '7108') + '</div></td>' +
+                badge + huidDisp + serialDisp + '</td>' +
             '<td class="px-2 py-2 text-center text-xs" style="color:#6b7280;">' + (item.quantity > 0 ? item.quantity : '\u2014') + '</td>' +
             '<td class="px-2 py-2 text-right text-xs" style="color:#374151;">' + (item.price > 0 ? '\u20B9' + item.price.toFixed(2) : '\u2014') + '</td>' +
             '<td class="px-2 py-2 text-right text-xs" style="color:#374151;">\u20B9' + base.toFixed(2) + '</td>' +
@@ -2652,7 +2681,7 @@ function buildItemsForSubmit() {
     const huid = getInvoiceHuid();
     return items.map(function(it) {
         const out = Object.assign({}, it);
-        if (!out.serial_no && huid) out.serial_no = huid;
+        if (!out.huid_code && huid) out.huid_code = huid;
         return out;
     });
 }
@@ -2679,19 +2708,23 @@ function calculateTotal() {
     const discount  = items.reduce((sum, item) => sum + (item.discount || 0), 0);
     
     let cgst = 0, sgst = 0;
-    const gstinEl = document.getElementById('customerGstin');
-    const hasGstin = gstinEl && gstinEl.value.trim().length > 0;
+    let hasGstItem = false;
     
-    if (hasGstin) {
-        items.forEach(item => {
-            if (item.gst_type === 'gst_3') {
-                cgst += item.total * 0.015;
-                sgst += item.total * 0.015;
-            } else if (item.gst_type === 'gst_18') {
-                cgst += item.total * 0.09;
-                sgst += item.total * 0.09;
-            }
-        });
+    items.forEach(item => {
+        if (item.gst_type === 'gst_3') {
+            cgst += item.total * 0.015;
+            sgst += item.total * 0.015;
+            hasGstItem = true;
+        } else if (item.gst_type === 'gst_18') {
+            cgst += item.total * 0.09;
+            sgst += item.total * 0.09;
+            hasGstItem = true;
+        }
+    });
+
+    const hiddenGstType = document.getElementById('hiddenGstType');
+    if (hiddenGstType) {
+        hiddenGstType.value = (hasGstItem || (cgst + sgst) > 0) ? 'gst' : 'non_gst';
     }
 
     const oldGoldEl = document.getElementById('oldGoldAmountInput');
@@ -3351,9 +3384,21 @@ document.getElementById('searchMobile').addEventListener('keydown', e => { if(e.
 
 // Form submit validation
 document.getElementById('billingForm').addEventListener('submit', function(e) {
-    if(items.length === 0) { e.preventDefault(); alert('\u274C Please add at least one product!'); return false; }
-    if(!document.getElementById('customerName').value.trim()) { e.preventDefault(); alert('\u274C Please enter customer name!'); return false; }
-    if(!document.getElementById('customerMobile').value.trim()) { e.preventDefault(); alert('\u274C Please enter customer mobile number!'); return false; }
+    if(items.length === 0) {
+        e.preventDefault();
+        alert('\u274C Please add at least one product to the bill first!');
+        return false;
+    }
+    if(!document.getElementById('customerName').value.trim()) {
+        e.preventDefault();
+        alert('\u274C Please enter customer name!');
+        return false;
+    }
+    if(!document.getElementById('customerMobile').value.trim()) {
+        e.preventDefault();
+        alert('\u274C Please enter customer mobile number!');
+        return false;
+    }
 
     // Aggregate requested stock pieces per product_id
     const reqPcsMap = {};

@@ -242,7 +242,7 @@ function numberToWords($num) {
 }
 
 // ── HSN defaults ──────────────────────────────────────────────────────────────
-$hsn_defaults = ['Gold'=>'71081200','Silver'=>'71069100','Diamond'=>'71023100','Platinum'=>'71101100'];
+$hsn_defaults = ['Gold'=>'0','Silver'=>'0','Diamond'=>'0','Platinum'=>'0'];
 $unit_defaults = ['Gold'=>'gm','Silver'=>'gm','Diamond'=>'ct','Platinum'=>'gm'];
 ?>
 <!DOCTYPE html>
@@ -467,7 +467,7 @@ nav.nav-gold span{color:#fff!important;}
         </div>
         <div class="md:col-span-2">
             <label class="field-label">Address</label>
-            <input name="supplier_addr" class="form-input" placeholder="Vill+P.O., District, State, PIN">
+            <input name="supplier_addr" class="form-input" placeholder="India, West Bengal">
         </div>
         <div>
             <label class="field-label">GSTIN</label>
@@ -506,7 +506,7 @@ nav.nav-gold span{color:#fff!important;}
         </div>
         <div class="md:col-span-2">
             <label class="field-label">Address</label>
-            <input name="buyer_addr" class="form-input" placeholder="Hamirpur, Debra, Kharagpur, Paschim Medinipur">
+            <input name="buyer_addr" class="form-input" placeholder="India, West Bengal">
         </div>
         <div>
             <label class="field-label">PAN</label>
@@ -546,7 +546,7 @@ nav.nav-gold span{color:#fff!important;}
         </div>
         <div>
             <label class="field-label">HSN / SAC Code</label>
-            <input name="hsn_sac" id="hsn_field" class="form-input" placeholder="71081200">
+            <input name="hsn_sac" id="hsn_field" class="form-input" placeholder="0">
         </div>
         <div>
             <label class="field-label">Unit</label>
@@ -742,7 +742,7 @@ function closeSidebar(){
 var purchaseItems = [];
 
 // ── Material selector ─────────────────────────────────────────────────────────
-const hsnMap  = {Gold:'71081200',Silver:'71069100',Diamond:'71023100',Platinum:'71101100'};
+const hsnMap  = {Gold:'0',Silver:'0',Diamond:'0',Platinum:'0'};
 const unitMap = {Gold:'gm',Silver:'gm',Diamond:'ct',Platinum:'gm'};
 const descMap = {Gold:'Pour Gold',Silver:'Silver Bar',Diamond:'Diamond (Natural)',Platinum:'Platinum Bar'};
 

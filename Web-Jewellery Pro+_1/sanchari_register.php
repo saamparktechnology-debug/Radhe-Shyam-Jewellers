@@ -56,7 +56,7 @@ if($_SERVER['REQUEST_METHOD']==='POST') {
             <div class="col-md-6"><label class="form-label">Joining Date</label><input type="date" name="joining_date" class="form-control" value="<?=date('Y-m-d')?>"></div>
             <div class="col-md-6"><label class="form-label">Monthly Deposit Amount <span class="text-danger">*</span></label><input type="number" step="0.01" name="monthly_amount" class="form-control" required></div>
             <div class="col-md-6"><label class="form-label">Scheme Duration</label><select name="scheme_duration" class="form-select"><option>11 Months</option><option selected>12 Months</option></select></div>
-            <div class="col-md-12"><label class="form-label">Address</label><textarea name="address" rows="3" class="form-control"></textarea></div>
+            <div class="col-md-12"><label class="form-label">Address</label><textarea name="address" rows="3" class="form-control" placeholder="India, West Bengal"></textarea></div>
             <div class="col-md-6"><label class="form-label">Status</label><select name="status" class="form-select"><option>Active</option><option>Completed</option><option>Closed</option></select></div>
           </div>
           <div class="mt-4 text-end"><button class="btn btn-warning text-white" type="submit">Save Customer</button></div>

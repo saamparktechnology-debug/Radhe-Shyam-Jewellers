@@ -391,7 +391,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     }
 }
 
-// ── Fetch all invoices with a due balance ─────────────────────────────────────
+// ── Fetch all invoices with a due balance (with search support) ───────────────
+$search_query = mysqli_real_escape_string($conn, trim($_GET['search'] ?? ''));
+$search_where = "";
+if (!empty($search_query)) {
+    $search_where = " AND (i.customer_name LIKE '%$search_query%' OR i.customer_mobile LIKE '%$search_query%' OR i.invoice_no LIKE '%$search_query%' OR c.email LIKE '%$search_query%') ";
+}
+
 $q = "SELECT i.id, i.invoice_no, i.customer_name, i.customer_mobile,
              COALESCE(c.email, '') AS customer_email,
              COALESCE(i.total_amount, 0) AS total_amount,
@@ -400,7 +406,7 @@ $q = "SELECT i.id, i.invoice_no, i.customer_name, i.customer_mobile,
       FROM invoices i
       LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
       LEFT JOIN customers c      ON c.mobile = i.customer_mobile
-      WHERE i.balance_amount > 0
+      WHERE i.balance_amount > 0 $search_where
       GROUP BY i.id
       ORDER BY i.due_date IS NULL, i.due_date ASC, i.created_at DESC";
 
@@ -807,6 +813,18 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('active');
     document.getElementById('burgerMenu').classList.remove('active');
     document.body.style.overflow = '';
+function filterDueTable(query) {
+    const term = query.trim().toLowerCase();
+    const rows = document.querySelectorAll('.due-table tbody tr');
+    rows.forEach(row => {
+        if (row.classList.contains('empty-row')) return;
+        const text = row.innerText.toLowerCase();
+        if (term === '' || text.includes(term)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 </script>
 
@@ -941,14 +959,35 @@ function closeSidebar() {
         <p>Pending invoices — update amount or due date, then save. Send email reminders directly.</p>
     </div>
 
-    <!-- Navigation Buttons -->
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-        <a href="reports.php" class="btn-back">
-            <i class="fas fa-arrow-left mr-1"></i> Back to Reports
-        </a>
-        <a href="due_list.php?action=export_due_history" onclick="showLoadingOverlay()" class="btn btn-export">
-            Export Due History
-        </a>
+    <!-- Navigation & Search Bar -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <a href="reports.php" class="btn-back">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Reports
+            </a>
+            <a href="due_list.php?action=export_due_history" onclick="showLoadingOverlay()" class="btn btn-export">
+                <i class="fas fa-file-csv mr-1"></i> Export Due History
+            </a>
+        </div>
+
+        <!-- Search Form & Live Filter -->
+        <form method="get" action="due_list.php" style="display:flex;gap:8px;align-items:center;margin:0;flex-wrap:wrap;flex:1;max-width:520px;justify-content:flex-end;">
+            <div style="position:relative;flex:1;min-width:240px;">
+                <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#d68b16;font-size:14px;"></i>
+                <input type="text" name="search" id="dueSearchInput" placeholder="Search Customer, Mobile, Inv No..."
+                       value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>"
+                       onkeyup="filterDueTable(this.value)"
+                       style="width:100%;padding:9px 12px 9px 36px;border:1.5px solid #d68b16;border-radius:8px;font-size:13px;background:#fff;color:#1e293b;outline:none;box-shadow:0 2px 6px rgba(122,78,10,0.08);">
+            </div>
+            <button type="submit" class="btn" style="background:linear-gradient(135deg,#7a4e0a,#d68b16);color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;box-shadow:0 3px 10px rgba(214,139,22,0.3);border:none;cursor:pointer;">
+                <i class="fas fa-search mr-1"></i> Search
+            </button>
+            <?php if(!empty($_GET['search'])): ?>
+            <a href="due_list.php" class="btn" style="background:#e2e8f0;color:#475569;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">
+                <i class="fas fa-times mr-1"></i> Clear
+            </a>
+            <?php endif; ?>
+        </form>
     </div>
 
     <?php if ($message): ?>

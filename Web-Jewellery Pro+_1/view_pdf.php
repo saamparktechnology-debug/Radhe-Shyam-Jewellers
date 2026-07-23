@@ -29,12 +29,12 @@ if(!$inv_res || mysqli_num_rows($inv_res) == 0) {
 $inv = mysqli_fetch_assoc($inv_res);
 
 // Fetch invoice items
-$col_unit = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'unit'")) > 0;
-if(!$col_unit) @mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN unit VARCHAR(20) DEFAULT 'g'");
+$col_gst_type_check = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'gst_type'")) > 0;
+$select_gst_type = $col_gst_type_check ? "ii.gst_type," : "'non_gst' AS gst_type,";
 
 $items_res = mysqli_query($conn, "
     SELECT ii.invoice_id, ii.product_id, ii.quantity, ii.price, ii.total,
-           ii.making_charge, ii.hallmark, ii.discount,
+           ii.making_charge, ii.hallmark, ii.discount, $select_gst_type
            'g' AS unit,
            COALESCE(ii.product_name, p.name) AS product_name,
            COALESCE(ii.serial_no, p.serial_no) AS serial_no,
@@ -49,14 +49,17 @@ if($items_res) {
     while($row = mysqli_fetch_assoc($items_res)) $items[] = $row;
 }
 
-$gst_total= floatval($inv['gst_amount'] ?? 0);
-$is_gst   = ($gst_total > 0 || ($inv['gst_type'] ?? '') === 'gst') && !empty($inv['customer_gstin']);
+$gst_total = floatval($inv['gst_amount'] ?? 0);
+$subtotal  = floatval($inv['subtotal'] ?? 0);
+$is_gst    = ($gst_total > 0 || strpos($inv['gst_type'] ?? '', 'gst') === 0);
 
-// Exact CGST & SGST 50/50 Split (e.g. 3% Total GST = 1.5% CGST + 1.5% SGST)
+// Calculate overall effective GST rate (e.g. 18% or 3%)
+$effective_gst_pct = ($subtotal > 0 && $gst_total > 0) ? round(($gst_total / $subtotal) * 100, 1) : ($is_gst ? 3 : 0);
+
+$cgst_rate   = $is_gst ? round($effective_gst_pct / 2, 2) : 0;
+$sgst_rate   = $is_gst ? round($effective_gst_pct / 2, 2) : 0;
 $cgst_amount = $is_gst ? round($gst_total / 2, 2) : 0;
 $sgst_amount = $is_gst ? round($gst_total / 2, 2) : 0;
-$cgst_rate   = $is_gst ? 1.5 : 0;
-$sgst_rate   = $is_gst ? 1.5 : 0;
 
 $subtotal = floatval($inv['subtotal'] ?? 0);
 $discount = floatval($inv['discount'] ?? 0);
@@ -484,24 +487,40 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                         </tr>
                         <?php else: foreach($items as $idx => $it):
                             $name     = htmlspecialchars($it['product_name'] ?? 'Item');
-                            $serial   = htmlspecialchars($it['serial_no'] ?? '');
-                            $huid     = htmlspecialchars($it['huid_code'] ?? '');
+                            $serial   = trim($it['serial_no'] ?? '');
+                            $huid     = trim($it['huid_code'] ?? '');
+                            if(empty($huid) && !empty($inv['huid_code'])) {
+                                $huid = trim($inv['huid_code']);
+                            }
                             $unit     = trim($it['unit'] ?? 'g');
                             $gross_wt = floatval($it['quantity']);
                             $net_wt   = floatval($it['quantity']);
                             $rate     = floatval($it['price']);
                             $amt      = floatval($it['total']);
-                            $tax_amt  = $is_gst ? round($amt * 0.03, 2) : 0;
+                            $it_gst_type = $it['gst_type'] ?? 'non_gst';
+                            if ($it_gst_type === 'gst_18') {
+                                $item_tax_rate = 18;
+                                $tax_amt = round($amt * 0.18, 2);
+                            } else if ($it_gst_type === 'gst_3') {
+                                $item_tax_rate = 3;
+                                $tax_amt = round($amt * 0.03, 2);
+                            } else if ($is_gst && $effective_gst_pct > 0) {
+                                $item_tax_rate = $effective_gst_pct;
+                                $tax_amt = round($amt * ($effective_gst_pct / 100), 2);
+                            } else {
+                                $item_tax_rate = 0;
+                                $tax_amt = 0;
+                            }
                         ?>
                         <tr>
                             <td class="center"><?php echo $idx + 1; ?></td>
                             <td>
                                 <div class="item-desc"><?php echo $name; ?></div>
-                                <?php if($serial): ?>
-                                <div class="item-sub">Serial: <strong><?php echo $serial; ?></strong></div>
+                                <?php if(!empty($huid)): ?>
+                                <div class="item-sub" style="color:#7a4e0a;font-weight:600;">HUID: <strong><?php echo htmlspecialchars($huid); ?></strong></div>
                                 <?php endif; ?>
-                                <?php if($huid): ?>
-                                <div class="item-sub">HUID: <strong><?php echo $huid; ?></strong></div>
+                                <?php if(!empty($serial) && $serial !== $huid): ?>
+                                <div class="item-sub">Serial: <strong><?php echo htmlspecialchars($serial); ?></strong></div>
                                 <?php endif; ?>
                             </td>
                             <td class="right"><strong><?php echo ($unit === 'Qty') ? number_format($gross_wt, 0) : number_format($gross_wt, 3); ?></strong> <?php echo $unit; ?></td>
@@ -509,7 +528,7 @@ body { background:#cbd5e1; padding:20px 0; color:#1e293b; }
                             <td class="right">₹<?php echo number_format($rate, 2); ?></td>
                             <td class="right">
                                 <?php if($is_gst && $tax_amt > 0): ?>
-                                ₹<?php echo number_format($tax_amt, 2); ?><br><span style="font-size:9px;color:#64748b;">(3%)</span>
+                                ₹<?php echo number_format($tax_amt, 2); ?><br><span style="font-size:9px;color:#64748b;">(<?php echo $item_tax_rate; ?>%)</span>
                                 <?php else: ?>
                                 <span style="color:#94a3b8;">0%</span>
                                 <?php endif; ?>
