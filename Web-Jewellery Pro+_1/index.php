@@ -7,6 +7,10 @@ require_once 'config/database.php';
 require_once 'config/company_config.php';
 
 $is_logged_in = isset($_SESSION['user_id']);
+if(!$is_logged_in) {
+    header("Location: login.php");
+    exit();
+}
 $theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
 $logo_paths = ['assets/images/radhey_shyam_logo.png', 'images/radhey_shyam_logo.png', 'radhey_shyam_logo.png', 'radhey shyam logo.png'];
 
