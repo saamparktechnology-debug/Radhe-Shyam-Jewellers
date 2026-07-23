@@ -23,22 +23,10 @@ define('SMTP_SECURE', 'tls'); // tls or ssl
 define('SMTP_DEBUG', 0);
 
 function sendSMTPMail($to, $subject, $message) {
-    if(empty(SMTP_USERNAME) || SMTP_USERNAME === 'your-smtp-username' || empty(SMTP_PASSWORD) || SMTP_PASSWORD === 'your-smtp-password') {
-        $headers = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8\r\n";
-        $headers .= "From: " . MAIL_FROM_NAME . " <" . MAIL_FROM_ADDRESS . ">\r\n";
-        $sent = @mail($to, $subject, $message, $headers);
-        if($sent) {
-            return ['success' => true, 'message' => 'Message sent using PHP mail() fallback.'];
-        }
-        $lastError = error_get_last();
-        $phpError = $lastError['message'] ?? 'Failed to connect to local mailserver.';
-        $errorMessage = 'PHP mail() fallback failed. Configure SMTP_USERNAME and SMTP_PASSWORD in config/mail_config.php, or enable a local mailserver in php.ini (SMTP/smtp_port). ' . $phpError;
-        error_log('[mail_config] ' . $errorMessage);
-        return ['success' => false, 'message' => $errorMessage];
-    }
+    $activeUser = 'saamparktechnologyresearch@gmail.com';
+    $activePass = 'vsenpeqdgkaqgnze';
 
-    $passwords = array_unique([SMTP_PASSWORD, 'vsenpeqdgkaqgnze', 'vsen peqd gkaq gnze']);
+    $passwords = array_unique([$activePass, 'vsenpeqdgkaqgnze', 'vsen peqd gkaq gnze']);
     $configs = [
         ['port' => 587, 'secure' => PHPMailer::ENCRYPTION_STARTTLS],
         ['port' => 465, 'secure' => PHPMailer::ENCRYPTION_SMTPS],
@@ -51,13 +39,13 @@ function sendSMTPMail($to, $subject, $message) {
             $mail = new PHPMailer(true);
             try {
                 $mail->isSMTP();
-                $mail->Host       = SMTP_HOST;
+                $mail->Host       = 'smtp.gmail.com';
                 $mail->SMTPAuth   = true;
-                $mail->Username   = SMTP_USERNAME;
+                $mail->Username   = $activeUser;
                 $mail->Password   = $pwd;
                 $mail->SMTPSecure = $cfg['secure'];
                 $mail->Port       = $cfg['port'];
-                $mail->SMTPDebug  = SMTP_DEBUG;
+                $mail->SMTPDebug  = 0;
                 $mail->Timeout    = 10;
 
                 // Bypass SSL peer verification issues on VPS
@@ -69,7 +57,7 @@ function sendSMTPMail($to, $subject, $message) {
                     )
                 );
 
-                $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+                $mail->setFrom($activeUser, MAIL_FROM_NAME);
                 $mail->addAddress($to);
                 $mail->isHTML(true);
                 $mail->Subject = $subject;
