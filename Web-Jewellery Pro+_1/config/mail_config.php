@@ -85,6 +85,14 @@ function sendSMTPMail($to, $subject, $message) {
         }
     }
 
+    // Fallback to PHP mail() if SMTP fails
+    $headers  = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-type:text/html;charset=UTF-8\r\n";
+    $headers .= "From: " . MAIL_FROM_NAME . " <" . MAIL_FROM_ADDRESS . ">\r\n";
+    if (@mail($to, $subject, $message, $headers)) {
+        return ['success' => true, 'message' => 'Message sent via server mail fallback'];
+    }
+
     return ['success' => false, 'message' => $lastErrorMsg];
 }
 ?>
