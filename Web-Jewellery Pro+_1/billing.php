@@ -1273,12 +1273,6 @@ function submitPayment() {
                                 maxlength="15" style="text-transform:uppercase;"
                                 oninput="this.value=this.value.toUpperCase(); calculateTotal();">
                         </div>
-                        <div>
-                            <label class="block mb-1 text-xs font-semibold" style="color:#7a4e0a;">HUID Code <span style="color:#9ca3af;">(Optional)</span></label>
-                            <input type="text" name="huid_code" id="manualHuid" placeholder="F108D"
-                                class="jewel-input w-full rounded-lg px-3 py-2 text-sm" list="huidList" oninput="populateHuidOptions()">
-                            <datalist id="huidList"></datalist>
-                        </div>
                     </div>
 
                     <!-- ADD ITEM SECTION -->
@@ -1315,17 +1309,12 @@ function submitPayment() {
                                     </div>
                                     <button type="button" onclick="clearGramStockSearch()" class="px-3 py-2 rounded-lg text-sm bg-white border border-yellow-300 text-yellow-800">✖</button>
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                    <div>
-                                        <label class="block mb-1 text-xs font-semibold text-yellow-800">Select Product</label>
-                                        <select id="gramStockProduct" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" onchange="onGramStockChange()">
-                                            <option value="">-- Select Product --</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block mb-1 text-xs font-semibold text-yellow-800">Weight (g)</label>
-                                        <input type="number" id="gramWeight" placeholder="Grams (e.g. 5.5)" step="0.001" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
-                                    </div>
+
+                                <div class="mb-3">
+                                    <label class="block mb-1 text-xs font-semibold text-yellow-800">Select Product</label>
+                                    <select id="gramStockProduct" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" onchange="onGramStockChange()">
+                                        <option value="">-- Select Product --</option>
+                                    </select>
                                 </div>
                                 <div id="gramStockProductInfo" class="hidden p-2 rounded-lg text-xs bg-green-50 border border-green-200 text-green-800 mb-3"></div>
                             </div>
@@ -1352,10 +1341,6 @@ function submitPayment() {
                                         </select>
                                         <div id="gramCatStockStatus" class="mt-1 text-xs font-bold hidden"></div>
                                     </div>
-                                    <div>
-                                        <label class="block mb-1 text-xs font-semibold text-yellow-800">Weight (g)</label>
-                                        <input type="number" id="gramWeightCat" placeholder="Grams" step="0.001" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="document.getElementById('gramWeight').value=this.value; autoGramTotal()">
-                                    </div>
                                 </div>
                                 <div id="gramCatLiveRateBadge" class="hidden p-2 rounded-lg text-xs bg-amber-50 border border-amber-200 text-amber-800 mb-3">
                                     <span id="gramCatLiveRateText"></span>
@@ -1365,13 +1350,9 @@ function submitPayment() {
                             <!-- Source: Manual -->
                             <div id="gramSourceManual" class="hidden">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                    <div class="sm:col-span-2">
+                                    <div>
                                         <label class="block mb-1 text-xs font-semibold text-yellow-800">Item Description *</label>
                                         <input type="text" id="gramManualName" placeholder="e.g. Handmade Kada 22K, Box..." class="jewel-input w-full rounded-lg px-3 py-2 text-sm">
-                                    </div>
-                                    <div>
-                                        <label class="block mb-1 text-xs font-semibold text-yellow-800">Weight (g)</label>
-                                        <input type="number" id="gramWeightManual" placeholder="Grams" step="0.001" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="document.getElementById('gramWeight').value=this.value; autoGramTotal()">
                                     </div>
                                     <div>
                                         <label class="block mb-1 text-xs font-semibold text-yellow-800">HSN Code</label>
@@ -1380,18 +1361,22 @@ function submitPayment() {
                                 </div>
                             </div>
 
-                            <!-- Rate, Qty & Live preview -->
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                            <!-- Rate, Weight, Qty & Live preview -->
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-yellow-800">Rate / Price (₹) *</label>
                                     <input type="number" id="gramRate" placeholder="Rate per 10g or Piece" step="0.01" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
                                     <div class="text-xs mt-1" style="color:#059669;" id="gramRatePerGramHint"></div>
                                 </div>
                                 <div>
+                                    <label class="block mb-1 text-xs font-semibold text-yellow-800">Weight (g)</label>
+                                    <input type="number" id="gramWeight" placeholder="Grams (e.g. 5.5)" step="0.001" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
+                                </div>
+                                <div>
                                     <label class="block mb-1 text-xs font-semibold text-yellow-800">Quantity (Pcs) *</label>
                                     <input type="number" id="gramQty" value="1" step="1" min="1" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
                                 </div>
-                                <div id="gramTotalPreviewRow" style="display:none;">
+                                <div id="gramTotalPreviewRow" class="col-span-2 sm:col-span-1" style="display:none;">
                                     <label class="block mb-1 text-xs font-semibold text-green-700">Calculated Base Amount</label>
                                     <div class="text-lg font-bold text-green-800 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg" id="gramTotalPreview">₹0.00</div>
                                 </div>
@@ -1401,7 +1386,7 @@ function submitPayment() {
                         <!-- Per-Item GST & Extra Charges -->
                         <div class="mt-4 pt-4" style="border-top:1px dashed rgba(214,139,22,0.3);">
                             <h4 class="text-xs font-bold mb-2" style="color:#7a4e0a;">Additional Details for this Item</h4>
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold" style="color:#7a4e0a;">Making Charge (%)</label>
                                     <input type="number" id="itemMakingCharge" value="" step="0.1" min="0" placeholder="0" class="jewel-input w-full rounded-lg px-2 py-1 text-sm" oninput="updateMakingChargeHint()">
@@ -1422,6 +1407,11 @@ function submitPayment() {
                                         <option value="gst_3">3%</option>
                                         <option value="gst_18">18%</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold" style="color:#7a4e0a;">HUID Code <span style="color:#9ca3af;">(Optional)</span></label>
+                                    <input type="text" id="itemHuid" placeholder="HUID" class="jewel-input w-full rounded-lg px-2 py-1 text-sm" list="huidList" oninput="populateHuidOptions()">
+                                    <datalist id="huidList"></datalist>
                                 </div>
                             </div>
                         </div>
@@ -1514,6 +1504,7 @@ function submitPayment() {
                     <input type="hidden" name="cash_paid" id="hiddenCashPaid" value="0">
                     <input type="hidden" name="upi_paid" id="hiddenUpiPaid" value="0">
                     <input type="hidden" name="is_split_payment" id="hiddenIsSplit" value="0">
+                    <input type="hidden" name="huid_code" id="hiddenInvoiceHuid" value="">
 
                     <!-- PAYMENT STATUS -->
                     <div class="mt-5">
@@ -1988,6 +1979,11 @@ function onGramStockChange() {
     }
 
     infoDiv.classList.remove('hidden');
+    const huid = opt.dataset.huid || '';
+    const itemHuidInput = document.getElementById('itemHuid');
+    if (itemHuidInput) {
+        itemHuidInput.value = huid;
+    }
     autoGramTotal();
 }
 
@@ -2272,7 +2268,7 @@ function submitGramItem() {
         is_manual: (source === 'manual'),
         is_item_only: (source === 'category'),
         serial_no: (source === 'stock') ? (document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex]?.dataset.serial || '') : '',
-        huid_code: (source === 'stock') ? (document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex]?.dataset.huid || '') : ''
+        huid_code: document.getElementById('itemHuid').value.trim()
     });
     
     updateItemsList();
@@ -2398,7 +2394,11 @@ function onQtyStockChange() {
         infoDiv.innerHTML = '<strong>' + name + '</strong> Selected. Price per Piece: ₹' + price.toFixed(2) + ' | Available Stock: <strong style="color:#059669;">' + qty + ' pcs</strong>';
     }
     infoDiv.classList.remove('hidden');
-    
+    const huid = opt.dataset.huid || '';
+    const itemHuidInput = document.getElementById('itemHuid');
+    if (itemHuidInput) {
+        itemHuidInput.value = huid;
+    }
     autoQtyTotal();
 }
 
@@ -2533,7 +2533,7 @@ function submitQtyItem() {
         is_manual: (source === 'manual'),
         is_item_only: (source === 'category'),
         serial_no: (source === 'stock') ? (document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex]?.dataset.serial || '') : '',
-        huid_code: (source === 'stock') ? (document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex]?.dataset.huid || '') : ''
+        huid_code: document.getElementById('itemHuid').value.trim()
     });
     
     updateItemsList();
@@ -2569,6 +2569,7 @@ function resetItemCharges() {
     document.getElementById('itemHallmark').value = '';
     document.getElementById('itemDiscount').value = '';
     document.getElementById('itemGstType').value = 'non_gst';
+    if (document.getElementById('itemHuid')) document.getElementById('itemHuid').value = '';
     const hint = document.getElementById('itemMakingChargeHint');
     if(hint) { hint.textContent = ''; hint.style.display = 'none'; }
 }
@@ -2674,7 +2675,7 @@ function updateItemGst(index, value) { if(items[index]) { items[index].gst_type 
 const AVAILABLE_HUIDS = <?php echo json_encode($available_huids); ?> || [];
 
 function getInvoiceHuid() {
-    const el = document.getElementById('manualHuid');
+    const el = document.getElementById('itemHuid');
     return el ? el.value.trim() : '';
 }
 function buildItemsForSubmit() {
@@ -2687,7 +2688,7 @@ function buildItemsForSubmit() {
 }
 
 function populateHuidOptions() {
-    const input = document.getElementById('manualHuid');
+    const input = document.getElementById('itemHuid');
     const list = document.getElementById('huidList');
     if(!input || !list) return;
     const term = input.value.trim().toLowerCase();
@@ -2752,6 +2753,9 @@ function calculateTotal() {
     document.getElementById('hiddenGst').value       = cgst + sgst;
     document.getElementById('hiddenTotal').value     = grand;
     document.getElementById('hiddenItems').value     = JSON.stringify(buildItemsForSubmit());
+    const firstHuid = items.length > 0 ? (items[0].huid_code || '') : '';
+    const hiddenInvHuid = document.getElementById('hiddenInvoiceHuid');
+    if (hiddenInvHuid) hiddenInvHuid.value = firstHuid;
     document.getElementById('hiddenMakingCharge').value = makingAmt;
     document.getElementById('hiddenHallmark').value  = hallmark;
     document.getElementById('hiddenDiscount').value  = discount;
@@ -3448,8 +3452,8 @@ document.getElementById('customerEmail').addEventListener('input', updateReminde
 document.getElementById('dueDate').addEventListener('change', updateDueDateHint);
 document.getElementById('customerMobile').addEventListener('input', updateReminderButtonVisibility);
 document.getElementById('paymentStatus').addEventListener('change', updateReminderButtonVisibility);
-if(document.getElementById('manualHuid')) {
-    document.getElementById('manualHuid').addEventListener('input', populateHuidOptions);
+if(document.getElementById('itemHuid')) {
+    document.getElementById('itemHuid').addEventListener('input', populateHuidOptions);
 }
 if(ALL_PRODUCTS.length > 0) { filterProductSelect(''); }
 </script>

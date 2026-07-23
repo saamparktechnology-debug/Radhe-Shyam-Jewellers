@@ -56,11 +56,39 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_delete_invoice'
                     $item_id = intval($item_id);
                     $restore_qty = floatval($qty_val);
                     if ($restore_qty > 0) {
-                        $it_res = mysqli_query($conn, "SELECT product_id FROM invoice_items WHERE id = $item_id AND invoice_id = $invoice_id LIMIT 1");
+                        $it_res = mysqli_query($conn, "SELECT * FROM invoice_items WHERE id = $item_id AND invoice_id = $invoice_id LIMIT 1");
                         if ($it_res && $it_row = mysqli_fetch_assoc($it_res)) {
                             $pid = intval($it_row['product_id']);
                             if ($pid > 0) {
-                                mysqli_query($conn, "UPDATE products SET quantity = quantity + $restore_qty WHERE id = $pid");
+                                // Check if product still exists
+                                $p_check = mysqli_query($conn, "SELECT id FROM products WHERE id = $pid LIMIT 1");
+                                if ($p_check && mysqli_num_rows($p_check) > 0) {
+                                    mysqli_query($conn, "UPDATE products SET quantity = quantity + $restore_qty WHERE id = $pid");
+                                } else {
+                                    // Product was deleted from products table, so we re-create it!
+                                    $p_name = mysqli_real_escape_string($conn, $it_row['product_name']);
+                                    $p_serial = mysqli_real_escape_string($conn, $it_row['serial_no']);
+                                    $p_huid = mysqli_real_escape_string($conn, $it_row['huid_code']);
+                                    $p_price = floatval($it_row['price']);
+                                    $p_cat = 'Gold 22K';
+                                    if (stripos($p_name, 'silver') !== false || $it_row['unit'] === 'pcs') {
+                                        $p_cat = 'Silver';
+                                    }
+                                    mysqli_query($conn, "INSERT INTO products (id, serial_no, name, item_name, category, price, quantity, huid_code) 
+                                                         VALUES ($pid, '$p_serial', '$p_name', '$p_name', '$p_cat', $p_price, $restore_qty, '$p_huid')");
+                                }
+                            } else {
+                                // Ad-hoc manually added item
+                                $p_name = mysqli_real_escape_string($conn, $it_row['product_name']);
+                                $p_serial = mysqli_real_escape_string($conn, $it_row['serial_no']);
+                                $p_huid = mysqli_real_escape_string($conn, $it_row['huid_code']);
+                                $p_price = floatval($it_row['price']);
+                                $p_cat = 'Gold 22K';
+                                if (stripos($p_name, 'silver') !== false) {
+                                    $p_cat = 'Silver';
+                                }
+                                mysqli_query($conn, "INSERT INTO products (serial_no, name, item_name, category, price, quantity, huid_code) 
+                                                     VALUES ('$p_serial', '$p_name', '$p_name', '$p_cat', $p_price, $restore_qty, '$p_huid')");
                             }
                         }
                     }
@@ -129,11 +157,27 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_reset_report'])
                         $invoice_id = $invoice['id'];
                         
                         // Restore product quantities
-                        $items_res = mysqli_query($conn, "SELECT product_id, quantity FROM invoice_items WHERE invoice_id = $invoice_id");
+                        $items_res = mysqli_query($conn, "SELECT * FROM invoice_items WHERE invoice_id = $invoice_id");
                         if ($items_res) {
-                            while ($item = mysqli_fetch_assoc($items_res)) {
-                                if (!empty($item['product_id']) && floatval($item['quantity']) > 0) {
-                                    mysqli_query($conn, "UPDATE products SET quantity = quantity + " . floatval($item['quantity']) . " WHERE id = " . intval($item['product_id']));
+                            while ($it_row = mysqli_fetch_assoc($items_res)) {
+                                $pid = intval($it_row['product_id']);
+                                $restore_qty = floatval($it_row['quantity']);
+                                if ($pid > 0 && $restore_qty > 0) {
+                                    $p_check = mysqli_query($conn, "SELECT id FROM products WHERE id = $pid LIMIT 1");
+                                    if ($p_check && mysqli_num_rows($p_check) > 0) {
+                                        mysqli_query($conn, "UPDATE products SET quantity = quantity + $restore_qty WHERE id = $pid");
+                                    } else {
+                                        $p_name = mysqli_real_escape_string($conn, $it_row['product_name']);
+                                        $p_serial = mysqli_real_escape_string($conn, $it_row['serial_no']);
+                                        $p_huid = mysqli_real_escape_string($conn, $it_row['huid_code']);
+                                        $p_price = floatval($it_row['price']);
+                                        $p_cat = 'Gold 22K';
+                                        if (stripos($p_name, 'silver') !== false || $it_row['unit'] === 'pcs') {
+                                            $p_cat = 'Silver';
+                                        }
+                                        mysqli_query($conn, "INSERT INTO products (id, serial_no, name, item_name, category, price, quantity, huid_code) 
+                                                             VALUES ($pid, '$p_serial', '$p_name', '$p_name', '$p_cat', $p_price, $restore_qty, '$p_huid')");
+                                    }
                                 }
                             }
                         }
