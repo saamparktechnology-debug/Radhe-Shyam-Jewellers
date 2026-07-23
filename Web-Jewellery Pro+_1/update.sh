@@ -8,6 +8,7 @@ git fetch --all
 git reset --hard origin/main
 chown -R www-data:www-data . 2>/dev/null || true
 chmod -R 755 . 2>/dev/null || true
+systemctl restart php8.2-fpm 2>/dev/null || systemctl restart php8.1-fpm 2>/dev/null || systemctl restart php8.0-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true
 systemctl reload nginx 2>/dev/null || systemctl reload apache2 2>/dev/null || true
 
 echo "=================================================="
