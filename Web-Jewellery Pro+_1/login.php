@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_otp'])) {
     $email    = mysqli_real_escape_string($conn, trim($_POST['email']));
     $password = $_POST['password'];
 
-    $check = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
+    $check = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email' OR mobile = '$email' OR LOWER(email) = LOWER('$email')");
     if (mysqli_num_rows($check) > 0) {
         $row = mysqli_fetch_assoc($check);
         if (password_verify($password, $row['password'])) {

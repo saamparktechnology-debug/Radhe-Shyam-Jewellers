@@ -84,18 +84,28 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_users);
 
-// Ensure default admin users exist if not already created
-$chk_subha = mysqli_query($conn, "SELECT id FROM users WHERE email = 'subhapatra169@gmail.com'");
-if ($chk_subha && mysqli_num_rows($chk_subha) == 0) {
-    $pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
-    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1') ON DUPLICATE KEY UPDATE password = '$pass_hash1'");
+// Ensure default admin users exist with valid password hashes
+$pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
+$pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
+
+$chk_subha = mysqli_query($conn, "SELECT id, password FROM users WHERE LOWER(email) = 'subhapatra169@gmail.com' OR mobile = '8617536679'");
+if ($chk_subha && mysqli_num_rows($chk_subha) > 0) {
+    $row_subha = mysqli_fetch_assoc($chk_subha);
+    if (!password_verify('radhe#123', $row_subha['password'])) {
+        mysqli_query($conn, "UPDATE users SET password = '$pass_hash1' WHERE id = {$row_subha['id']}");
+    }
+} else {
+    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1')");
 }
 
-$chk_supriya = mysqli_query($conn, "SELECT id FROM users WHERE email = 'hiisupriya@gmail.com'");
-if ($chk_supriya && mysqli_num_rows($chk_supriya) == 0) {
-    $pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
-    mysqli_query($conn, "DELETE FROM users WHERE mobile = '9876543210' AND email = 'admin@radheshyamjewellers.com'");
-    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2') ON DUPLICATE KEY UPDATE password = '$pass_hash2'");
+$chk_sup = mysqli_query($conn, "SELECT id, password FROM users WHERE LOWER(email) = 'hiisupriya@gmail.com' OR mobile = '9876543210' OR mobile = '7000000001'");
+if ($chk_sup && mysqli_num_rows($chk_sup) > 0) {
+    $row_sup = mysqli_fetch_assoc($chk_sup);
+    if (!password_verify('123456', $row_sup['password'])) {
+        mysqli_query($conn, "UPDATE users SET password = '$pass_hash2', email = 'hiisupriya@gmail.com' WHERE id = {$row_sup['id']}");
+    }
+} else {
+    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2')");
 }
 
 $create_products = "CREATE TABLE IF NOT EXISTS products (
