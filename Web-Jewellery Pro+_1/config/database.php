@@ -88,13 +88,14 @@ mysqli_query($conn, $create_users);
 $chk_subha = mysqli_query($conn, "SELECT id FROM users WHERE email = 'subhapatra169@gmail.com'");
 if ($chk_subha && mysqli_num_rows($chk_subha) == 0) {
     $pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
-    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1')");
+    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1') ON DUPLICATE KEY UPDATE password = '$pass_hash1'");
 }
 
 $chk_supriya = mysqli_query($conn, "SELECT id FROM users WHERE email = 'hiisupriya@gmail.com'");
 if ($chk_supriya && mysqli_num_rows($chk_supriya) == 0) {
     $pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
-    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2')");
+    mysqli_query($conn, "DELETE FROM users WHERE mobile = '9876543210' AND email = 'admin@radheshyamjewellers.com'");
+    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2') ON DUPLICATE KEY UPDATE password = '$pass_hash2'");
 }
 
 $create_products = "CREATE TABLE IF NOT EXISTS products (
