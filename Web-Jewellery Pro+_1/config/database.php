@@ -1,79 +1,21 @@
 <?php
-// Disable automatic throwing of uncaught SQL exceptions during fallback attempts
-mysqli_report(MYSQLI_REPORT_OFF);
+$host = 'localhost';
+$user = 'root';
+$password = '';
+$database = 'moti';
 
-// Load .env file if present
-$env_file = __DIR__ . '/../.env';
-if (file_exists($env_file)) {
-    $lines = file($env_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if (strpos($line, '#') === 0) continue;
-        if (strpos($line, '=') !== false) {
-            list($name, $value) = explode('=', $line, 2);
-            $name = trim($name);
-            $value = trim(trim($value), "\"'");
-            if (!isset($_ENV[$name])) $_ENV[$name] = $value;
-        }
-    }
-}
 
-$host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ? getenv('DB_HOST') : '127.0.0.1');
-$user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ? getenv('DB_USER') : 'root');
-$password = isset($_ENV['DB_PASSWORD']) ? $_ENV['DB_PASSWORD'] : (getenv('DB_PASSWORD') ? getenv('DB_PASSWORD') : 'RootPass123');
-$database = isset($_ENV['DB_DATABASE']) ? $_ENV['DB_DATABASE'] : (getenv('DB_DATABASE') ? getenv('DB_DATABASE') : 'radhe_shyam_jewellers');
-$port = isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : (getenv('DB_PORT') ? getenv('DB_PORT') : '3306');
 
-// ── Smart connection with password fallbacks ──
-$conn = false;
-$passwords_to_try = array_unique([$password, 'RootPass123', '', 'root', 'radhe#123', '123456']);
-$hosts_to_try     = array_unique([$host, '127.0.0.1']);
+$conn = mysqli_connect($host, $user, $password, $database);
 
-foreach ($hosts_to_try as $h) {
-    foreach ($passwords_to_try as $p) {
-        $conn = @mysqli_connect($h, $user, $p, '', $port);
-        if ($conn) {
-            mysqli_query($conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-            mysqli_select_db($conn, $database);
-            $host = $h; $password = $p;
-            break 2;
-        }
-    }
-}
-
-if (!$conn) {
-    // Try direct database connection
-    foreach ($hosts_to_try as $h) {
-        foreach ($passwords_to_try as $p) {
-            $conn = @mysqli_connect($h, $user, $p, $database, $port);
-            if ($conn) { $host = $h; $password = $p; break 2; }
-        }
-    }
-}
-
-if (!$conn) {
-    die("<div style='padding:30px;font-family:sans-serif;background:#fff1f2;color:#991b1b;border:2px solid #f87171;border-radius:12px;margin:40px auto;max-width:650px;'>
-        <h3 style='margin-top:0;'>❌ Database Connection Failed</h3>
-        <p>Could not connect to MySQL database <strong>" . htmlspecialchars($database) . "</strong> with user <strong>" . htmlspecialchars($user) . "</strong>.</p>
-        <p>Please check your MySQL root password or set it in a <code>.env</code> file.</p>
-    </div>");
+if(!$conn) {
+die("Connection failed: " . mysqli_connect_error());
 }
 
 // Set timezone
 date_default_timezone_set('Asia/Kolkata');
 
 // Create tables if not exist
-$create_due_history = "CREATE TABLE IF NOT EXISTS due_update_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    invoice_id INT NOT NULL,
-    previous_balance DECIMAL(10,2) NOT NULL,
-    new_balance DECIMAL(10,2) NOT NULL,
-    amount_paid DECIMAL(10,2) NOT NULL,
-    payment_date DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
-mysqli_query($conn, $create_due_history);
-
 $create_users = "CREATE TABLE IF NOT EXISTS users (
 id INT AUTO_INCREMENT PRIMARY KEY,
 name VARCHAR(100) NOT NULL,
@@ -83,19 +25,6 @@ password VARCHAR(255) NOT NULL,
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_users);
-
-// Ensure default admin users exist if not already created
-$chk_subha = mysqli_query($conn, "SELECT id FROM users WHERE LOWER(email) = 'subhapatra169@gmail.com' OR mobile = '8617536679'");
-if ($chk_subha && mysqli_num_rows($chk_subha) == 0) {
-    $pass_hash1 = password_hash('radhe#123', PASSWORD_BCRYPT);
-    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Subha Patra', '8617536679', 'subhapatra169@gmail.com', '$pass_hash1')");
-}
-
-$chk_sup = mysqli_query($conn, "SELECT id FROM users WHERE LOWER(email) = 'hiisupriya@gmail.com' OR mobile = '9876543210' OR mobile = '7000000001'");
-if ($chk_sup && mysqli_num_rows($chk_sup) == 0) {
-    $pass_hash2 = password_hash('123456', PASSWORD_BCRYPT);
-    mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('Supriya', '9876543210', 'hiisupriya@gmail.com', '$pass_hash2')");
-}
 
 $create_products = "CREATE TABLE IF NOT EXISTS products (
 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -113,6 +42,7 @@ $products_cols = [
     'weight'    => "VARCHAR(20) NULL",
     'item_name' => "VARCHAR(255) DEFAULT ''",
     'huid_code' => "VARCHAR(100) NULL",
+    'hsn_code'  => "VARCHAR(50) DEFAULT '0'",
 ];
 
 foreach ($products_cols as $col_name => $col_definition) {
@@ -214,9 +144,6 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 mysqli_query($conn, $create_invoices);
 
-// Ensure gst_type supports string values without truncation errors
-mysqli_query($conn, "ALTER TABLE invoices MODIFY COLUMN gst_type VARCHAR(50) DEFAULT 'non_gst'");
-
 // Ensure all required columns exist on invoices table
 $columns_to_ensure = [
     'customer_id'      => "INT NULL",
@@ -233,7 +160,6 @@ $columns_to_ensure = [
     'account_paid'     => "DECIMAL(10,2) DEFAULT 0",
     'due_date'         => "DATE NULL",
     'reminder_sent'    => "TINYINT(1) DEFAULT 0",
-    'old_gold_amount'   => "DECIMAL(10,2) DEFAULT 0",
     'pdf_file'         => "LONGBLOB NULL",
     'pdf_file_name'    => "VARCHAR(255) NULL",
 ];
@@ -262,11 +188,9 @@ $invoice_items_cols = [
     'serial_no'     => "VARCHAR(100) NULL",
     'hsn_code'      => "VARCHAR(50) NULL",
     'making_charge' => "DECIMAL(10,2) DEFAULT 0",
-    'making_charge_pct' => "DECIMAL(5,2) DEFAULT 0",
     'hallmark'      => "DECIMAL(10,2) DEFAULT 0",
     'discount'      => "DECIMAL(10,2) DEFAULT 0",
     'huid_code'     => "VARCHAR(100) NULL",
-    'unit'          => "VARCHAR(10) DEFAULT 'g'",
 ];
 
 foreach ($invoice_items_cols as $col_name => $col_definition) {
@@ -286,18 +210,25 @@ if ($chk_qty && mysqli_num_rows($chk_qty) > 0) {
 }
 
 
-// Insert default admin user if empty
-$check_admin = mysqli_query($conn, "SELECT id FROM users WHERE mobile = '9876543210'");
-if(mysqli_num_rows($check_admin) == 0) {
-$hash = password_hash('123456', PASSWORD_DEFAULT);
-mysqli_query($conn, "INSERT IGNORE INTO users (name, mobile, email, password) VALUES ('Admin User', '9876543210', 'admin@radheshyamjewellers.com', '$hash')");
-}
+// Always ensure required admin accounts exist with exact password hash for 123456
+$admin_pass_hash = password_hash('123456', PASSWORD_DEFAULT);
+$required_admins = [
+    ['motijewellers9635985848@gmail.com', '9635985848', 'Moti Admin'],
+    ['saamparktechnology@gmail.com', '8617536679', 'Saampark Admin'],
+    ['hiisupriya@gmail.com', '9876543210', 'Supriya Admin']
+];
 
-// Insert Radhe Shyam main admin account (Subhapatra169@gmail.com / 123456)
-$check_rs_admin = mysqli_query($conn, "SELECT id FROM users WHERE mobile = '8617536679' OR email = 'Subhapatra169@gmail.com'");
-if($check_rs_admin && mysqli_num_rows($check_rs_admin) == 0) {
-    $hash = password_hash('123456', PASSWORD_DEFAULT);
-    mysqli_query($conn, "INSERT IGNORE INTO users (name, mobile, email, password) VALUES ('Radhe Shyam Admin', '8617536679', 'Subhapatra169@gmail.com', '$hash')");
+foreach ($required_admins as $adm) {
+    $adm_email = $adm[0];
+    $adm_mob   = $adm[1];
+    $adm_name  = $adm[2];
+    
+    $chk_adm = mysqli_query($conn, "SELECT id FROM users WHERE email = '$adm_email' OR mobile = '$adm_mob'");
+    if ($chk_adm && mysqli_num_rows($chk_adm) > 0) {
+        mysqli_query($conn, "UPDATE users SET password = '$admin_pass_hash', email = '$adm_email', mobile = '$adm_mob' WHERE email = '$adm_email' OR mobile = '$adm_mob'");
+    } else {
+        mysqli_query($conn, "INSERT INTO users (name, mobile, email, password) VALUES ('$adm_name', '$adm_mob', '$adm_email', '$admin_pass_hash')");
+    }
 }
 
 // Create purchase_entries table if not exists
@@ -318,7 +249,7 @@ $create_purchase_entries = "CREATE TABLE IF NOT EXISTS purchase_entries (
     supplier_state_code VARCHAR(5),
     supplier_mobile VARCHAR(20),
     supplier_email  VARCHAR(100),
-    buyer_name      VARCHAR(200) DEFAULT 'RADHE SHYAM JEWELLERS',
+    buyer_name      VARCHAR(200) DEFAULT 'MOTI JEWELLERS',
     buyer_addr      VARCHAR(500),
     buyer_gstin     VARCHAR(20),
     buyer_pan       VARCHAR(20),
@@ -369,143 +300,7 @@ foreach (['Gold', 'Silver', 'Diamond', 'Platinum'] as $m) {
 }
 
 
-// Income table
-$create_income = "CREATE TABLE IF NOT EXISTS income (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    income_date DATE NOT NULL,
-    source VARCHAR(100) NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    description TEXT,
-    payment_method ENUM('cash', 'card', 'upi', 'bank') DEFAULT 'cash',
-    invoice_no VARCHAR(50),
-    created_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_date (income_date),
-    INDEX idx_category (category)
-)";
-mysqli_query($conn, $create_income);
-
-// Expenses table
-$create_expenses = "CREATE TABLE IF NOT EXISTS expenses (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    expense_date DATE NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    description TEXT,
-    payment_method ENUM('cash', 'card', 'upi', 'bank') DEFAULT 'cash',
-    bill_no VARCHAR(50),
-    vendor_name VARCHAR(100),
-    created_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_date (expense_date),
-    INDEX idx_category (category)
-)";
-mysqli_query($conn, $create_expenses);
-
-// Income Categories table
-$create_income_categories = "CREATE TABLE IF NOT EXISTS income_categories (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    category_name VARCHAR(50) UNIQUE NOT NULL,
-    status ENUM('active', 'inactive') DEFAULT 'active'
-)";
-mysqli_query($conn, $create_income_categories);
-
-// Expense Categories table
-$create_expense_categories = "CREATE TABLE IF NOT EXISTS expense_categories (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    category_name VARCHAR(50) UNIQUE NOT NULL,
-    status ENUM('active', 'inactive') DEFAULT 'active'
-)";
-mysqli_query($conn, $create_expense_categories);
-
-// Insert default income categories
-mysqli_query($conn, "INSERT IGNORE INTO income_categories (category_name) VALUES 
-('Sales Income'), ('Interest Income'), ('Rental Income'), ('Commission Income'), ('Other Income')");
-
-// Insert default expense categories
-mysqli_query($conn, "INSERT IGNORE INTO expense_categories (category_name) VALUES 
-('Purchase'), ('Rent'), ('Electricity Bill'), ('Salary'), ('Marketing'), ('Maintenance'), ('Tax Payment'), ('Transportation'), ('Other Expenses')");
-
-// WhatsApp Settings Table
-$create_whatsapp_settings = "CREATE TABLE IF NOT EXISTS whatsapp_settings (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    api_type VARCHAR(50) DEFAULT 'greenapi',
-    api_url VARCHAR(255),
-    api_token VARCHAR(255),
-    instance_id VARCHAR(100),
-    phone_number_id VARCHAR(100),
-    access_token TEXT,
-    status VARCHAR(20) DEFAULT 'inactive',
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
-mysqli_query($conn, $create_whatsapp_settings);
-
-// WhatsApp Message Templates Table
-$create_whatsapp_templates = "CREATE TABLE IF NOT EXISTS whatsapp_templates (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    template_name VARCHAR(100) NOT NULL,
-    template_type VARCHAR(50) DEFAULT 'custom',
-    message_content TEXT NOT NULL,
-    variables TEXT,
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
-mysqli_query($conn, $create_whatsapp_templates);
-
-// WhatsApp Message Log Table
-$create_whatsapp_logs = "CREATE TABLE IF NOT EXISTS whatsapp_logs (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    recipient_number VARCHAR(20) NOT NULL,
-    recipient_name VARCHAR(100),
-    message_type VARCHAR(50),
-    message_content TEXT,
-    status VARCHAR(20) DEFAULT 'pending',
-    api_response TEXT,
-    sent_at TIMESTAMP NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_recipient (recipient_number),
-    INDEX idx_status (status)
-)";
-mysqli_query($conn, $create_whatsapp_logs);
-
-// Auto Reminder Settings Table
-$create_reminder_settings = "CREATE TABLE IF NOT EXISTS reminder_settings (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    reminder_type VARCHAR(50) DEFAULT 'due',
-    days_before INT DEFAULT 0,
-    reminder_time TIME DEFAULT '10:00:00',
-    is_active INT DEFAULT 1,
-    template_id INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
-mysqli_query($conn, $create_reminder_settings);
-
-// OTP logins table
-$create_otp_logins = "CREATE TABLE IF NOT EXISTS otp_logins (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    email VARCHAR(100) NOT NULL,
-    otp VARCHAR(6) NOT NULL,
-    expires_at DATETIME NOT NULL,
-    is_used BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_email (email),
-    INDEX idx_otp (otp)
-)";
-mysqli_query($conn, $create_otp_logins);
-
-// Password Resets table
-$create_password_resets = "CREATE TABLE IF NOT EXISTS password_resets (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    email VARCHAR(100) NOT NULL,
-    otp VARCHAR(6) NOT NULL,
-    expires_at DATETIME NOT NULL,
-    is_used BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_email (email),
-    INDEX idx_otp (otp)
-)";
-mysqli_query($conn, $create_password_resets);
+// Set session user if needed
 if(isset($_SESSION['user_id'])) {
 $check = mysqli_query($conn, "SELECT id FROM users WHERE id = '{$_SESSION['user_id']}'");
 if(mysqli_num_rows($check) == 0) {
@@ -517,4 +312,3 @@ $_SESSION['user_mobile'] = '9876543210';
 }
 }
 ?>
-

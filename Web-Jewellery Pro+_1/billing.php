@@ -73,13 +73,13 @@ if(isset($_GET['action']) && $_GET['action'] === 'send_reminder') {
         exit();
     }
 
-    $subject = 'Payment Reminder from RADHE SHYAM JEWELLERS';
+    $subject = 'Payment Reminder from MOTI JEWELLERS';
     $invoice_text = $invoice_no ? 'Invoice No: ' . htmlspecialchars($invoice_no) . '<br>' : '';
     $message = '<p>Dear ' . htmlspecialchars($customer_name) . ',</p>' .
                '<p>This is a reminder that an amount of <strong>&#8377;' . number_format($balance_amount, 2) . '</strong> is still due.' .
                ($invoice_no ? ' Please refer to ' . htmlspecialchars($invoice_no) . '.' : '') . '</p>' .
                '<p>Please make the remaining payment at your earliest convenience.</p>' .
-               '<p>Thank you,<br>RADHE SHYAM JEWELLERS</p>';
+               '<p>Thank you,<br>MOTI JEWELLERS</p>';
     $sendResult = sendSMTPMail($customer_email, $subject, $message);
     _sr_log(['after_sendSMTPMail','sendResult'=>$sendResult]);
     if(!empty($sendResult['success'])) {
@@ -243,7 +243,7 @@ $last_upi_paid = 0;
 $last_is_split = 0;
 $last_old_gold_amount = 0;
 
-$logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
+$logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
 
 // Fetch products from DB
 $all_products = [];
@@ -337,26 +337,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     $customer_address = mysqli_real_escape_string($conn, $_POST['customer_address'] ?? '');
     $customer_email   = mysqli_real_escape_string($conn, $_POST['customer_email'] ?? '');
     $raw_gst_type     = strtolower(trim($_POST['gst_type'] ?? 'non_gst'));
-    $gst_amount       = floatval($_POST['gst_amount'] ?? 0);
-
-    // Auto-detect if invoice contains GST items (3% / 18%)
-    $has_gst_item = false;
-    $submitted_items = json_decode($_POST['items'] ?? '[]', true);
-    if (is_array($submitted_items)) {
-        foreach ($submitted_items as $s_item) {
-            $gt = $s_item['gst_type'] ?? 'non_gst';
-            if ($gt === 'gst_3' || $gt === 'gst_18' || $gt === 'gst') {
-                $has_gst_item = true;
-                break;
-            }
-        }
-    }
-
-    if ($gst_amount > 0 || $has_gst_item || $raw_gst_type === 'gst') {
-        $gst_type = 'gst';
-    } else {
-        $gst_type = 'non_gst';
-    }
+    $gst_type         = mysqli_real_escape_string($conn, $raw_gst_type);
     $subtotal         = floatval($_POST['subtotal']);
     $making_charge    = floatval($_POST['making_charge'] ?? 0);
     $hallmark         = floatval($_POST['hallmark'] ?? 0);
@@ -526,8 +507,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
         if(!$col_item_hm) mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN hallmark DECIMAL(10,2) DEFAULT 0");
         $col_item_disc = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'discount'")) > 0;
         if(!$col_item_disc) mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN discount DECIMAL(10,2) DEFAULT 0");
-        $col_item_gst_type = mysqli_num_rows(mysqli_query($conn, "SHOW COLUMNS FROM invoice_items LIKE 'gst_type'")) > 0;
-        if(!$col_item_gst_type) mysqli_query($conn, "ALTER TABLE invoice_items ADD COLUMN gst_type VARCHAR(20) DEFAULT 'non_gst'");
 
         if(is_array($items)) {
             foreach($items as $item) {
@@ -539,14 +518,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
                 $item_making_charge_pct = floatval($item['making_charge_pct'] ?? 0);
                 $item_hallmark      = floatval($item['hallmark'] ?? 0);
                 $item_discount      = floatval($item['discount'] ?? 0);
-                $item_gst_type_val  = mysqli_real_escape_string($conn, trim($item['gst_type'] ?? 'non_gst'));
                 $manual_name = mysqli_real_escape_string($conn, trim($item['name'] ?? $item['product'] ?? ''));
                 $manual_serial = mysqli_real_escape_string($conn, trim($item['serial'] ?? $item['serial_no'] ?? ''));
                 $manual_huid = mysqli_real_escape_string($conn, trim($item['huid_code'] ?? $item['huid'] ?? ''));
                 $manual_hsn = mysqli_real_escape_string($conn, trim($item['hsn'] ?? $item['hsn_code'] ?? ''));
 
                 if($product_id === 'other' || !is_numeric($product_id)) {
-                    $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount, gst_type) VALUES ($invoice_id, NULL, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount, '".$item_gst_type_val."')";
+                    $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount) VALUES ($invoice_id, NULL, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount)";
                     mysqli_query($conn, $item_query);
                     continue;
                 }
@@ -554,8 +532,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
                 $pcs_deduct = floatval($item['pcs'] ?? $item['stock_deduct'] ?? 1);
                 if($pcs_deduct <= 0) $pcs_deduct = 1;
 
-                $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount, gst_type)
-                               VALUES ($invoice_id, $pid, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount, '".$item_gst_type_val."')";
+                $item_query = "INSERT INTO invoice_items (invoice_id, product_id, product_name, serial_no, huid_code, hsn_code, quantity, price, total, making_charge, making_charge_pct, hallmark, discount)
+                               VALUES ($invoice_id, $pid, '".$manual_name."', '".$manual_serial."', '".$manual_huid."', '".$manual_hsn."', $quantity, $price, $total, $item_making_charge, $item_making_charge_pct, $item_hallmark, $item_discount)";
                 mysqli_query($conn, $item_query);
 
                 // 1. Deduct piece count from products.quantity
@@ -589,7 +567,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Billing - RADHE SHYAM JEWELLERS</title>
+    <title>Billing - MOTI JEWELLERS</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/theme.css">
@@ -810,7 +788,7 @@ window.addEventListener('load', function() {
             
             
             <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
-                <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
+                <img src="logo.png" alt="MOTI JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
         <div style="display:flex;gap:9px;justify-content:center;">
@@ -837,7 +815,7 @@ window.addEventListener('load', function() {
         if(!$logo_found) echo '<i class="fas fa-gem" style="color:#fff;font-size:30px;flex-shrink:0;"></i>';
         ?>
         <div class="sidebar-logo-text">
-            <h2>RADHE SHYAM JEWELLERS</h2>
+            <h2>MOTI JEWELLERS</h2>
             <p>Premium Since 2026</p>
         </div>
     </div>
@@ -855,6 +833,9 @@ window.addEventListener('load', function() {
         </a>
         <a href="customers.php">
             <i class="fas fa-users"></i> CUSTOMERS
+        </a>
+        <a href="sanchari_dashboard.php">
+            <i class="fas fa-piggy-bank"></i> SANCHAY SCHEME
         </a>
 
         <div class="sidebar-divider"></div>
@@ -1259,7 +1240,7 @@ function submitPayment() {
                         <div class="sm:col-span-2">
                             <label class="block mb-1 text-sm font-semibold" style="color:#7a4e0a;">Address</label>
                             <input type="text" name="customer_address" id="customerAddress"
-                                class="jewel-input w-full rounded-lg px-3 py-2 text-sm" placeholder="India, West Bengal">
+                                class="jewel-input w-full rounded-lg px-3 py-2 text-sm" placeholder="Customer Address">
                         </div>
                         <div>
                             <label class="block mb-1 text-sm font-semibold" style="color:#7a4e0a;">Email <span style="color:#9ca3af;font-size:11px;">(Optional, required for reminder email)</span></label>
@@ -1309,7 +1290,6 @@ function submitPayment() {
                                     </div>
                                     <button type="button" onclick="clearGramStockSearch()" class="px-3 py-2 rounded-lg text-sm bg-white border border-yellow-300 text-yellow-800">✖</button>
                                 </div>
-
                                 <div class="mb-3">
                                     <label class="block mb-1 text-xs font-semibold text-yellow-800">Select Product</label>
                                     <select id="gramStockProduct" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" onchange="onGramStockChange()">
@@ -1350,24 +1330,33 @@ function submitPayment() {
                             <!-- Source: Manual -->
                             <div id="gramSourceManual" class="hidden">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                    <div>
+                                    <div class="sm:col-span-2">
                                         <label class="block mb-1 text-xs font-semibold text-yellow-800">Item Description *</label>
                                         <input type="text" id="gramManualName" placeholder="e.g. Handmade Kada 22K, Box..." class="jewel-input w-full rounded-lg px-3 py-2 text-sm">
                                     </div>
-                                    <div>
+                                    <div class="sm:col-span-2">
                                         <label class="block mb-1 text-xs font-semibold text-yellow-800">HSN Code</label>
                                         <input type="text" id="gramManualHsn" placeholder="7108" value="7108" class="jewel-input w-full rounded-lg px-3 py-2 text-sm">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Rate, Weight, Qty & Live preview -->
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                            <!-- Rate, HUID, Weight, Qty & Live preview -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-yellow-800">Rate / Price (₹) *</label>
                                     <input type="number" id="gramRate" placeholder="Rate per 10g or Piece" step="0.01" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
                                     <div class="text-xs mt-1" style="color:#059669;" id="gramRatePerGramHint"></div>
                                 </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-yellow-800">HUID Code <span style="color:#9ca3af;">(Optional)</span></label>
+                                    <input type="text" name="huid_code" id="manualHuid" placeholder="F108D"
+                                        class="jewel-input w-full rounded-lg px-3 py-2 text-sm" list="huidList" oninput="populateHuidOptions()">
+                                    <datalist id="huidList"></datalist>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-yellow-800">Weight (g)</label>
                                     <input type="number" id="gramWeight" placeholder="Grams (e.g. 5.5)" step="0.001" min="0" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
@@ -1376,7 +1365,10 @@ function submitPayment() {
                                     <label class="block mb-1 text-xs font-semibold text-yellow-800">Quantity (Pcs) *</label>
                                     <input type="number" id="gramQty" value="1" step="1" min="1" class="jewel-input w-full rounded-lg px-3 py-2 text-sm" oninput="autoGramTotal()">
                                 </div>
-                                <div id="gramTotalPreviewRow" class="col-span-2 sm:col-span-1" style="display:none;">
+                            </div>
+                            
+                            <div class="grid grid-cols-1 gap-3 mb-3">
+                                <div id="gramTotalPreviewRow" style="display:none;">
                                     <label class="block mb-1 text-xs font-semibold text-green-700">Calculated Base Amount</label>
                                     <div class="text-lg font-bold text-green-800 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg" id="gramTotalPreview">₹0.00</div>
                                 </div>
@@ -1386,7 +1378,7 @@ function submitPayment() {
                         <!-- Per-Item GST & Extra Charges -->
                         <div class="mt-4 pt-4" style="border-top:1px dashed rgba(214,139,22,0.3);">
                             <h4 class="text-xs font-bold mb-2" style="color:#7a4e0a;">Additional Details for this Item</h4>
-                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold" style="color:#7a4e0a;">Making Charge (%)</label>
                                     <input type="number" id="itemMakingCharge" value="" step="0.1" min="0" placeholder="0" class="jewel-input w-full rounded-lg px-2 py-1 text-sm" oninput="updateMakingChargeHint()">
@@ -1407,11 +1399,6 @@ function submitPayment() {
                                         <option value="gst_3">3%</option>
                                         <option value="gst_18">18%</option>
                                     </select>
-                                </div>
-                                <div>
-                                    <label class="block mb-1 text-xs font-semibold" style="color:#7a4e0a;">HUID Code <span style="color:#9ca3af;">(Optional)</span></label>
-                                    <input type="text" id="itemHuid" placeholder="HUID" class="jewel-input w-full rounded-lg px-2 py-1 text-sm" list="huidList" oninput="populateHuidOptions()">
-                                    <datalist id="huidList"></datalist>
                                 </div>
                             </div>
                         </div>
@@ -1491,7 +1478,6 @@ function submitPayment() {
                     </div>
 
                     <!-- Hidden form fields -->
-                    <input type="hidden" name="gst_type" id="hiddenGstType" value="non_gst">
                     <input type="hidden" name="subtotal" id="hiddenSubtotal" value="0">
                     <input type="hidden" name="gst_amount" id="hiddenGst" value="0">
                     <input type="hidden" name="total_amount" id="hiddenTotal" value="0">
@@ -1504,7 +1490,6 @@ function submitPayment() {
                     <input type="hidden" name="cash_paid" id="hiddenCashPaid" value="0">
                     <input type="hidden" name="upi_paid" id="hiddenUpiPaid" value="0">
                     <input type="hidden" name="is_split_payment" id="hiddenIsSplit" value="0">
-                    <input type="hidden" name="huid_code" id="hiddenInvoiceHuid" value="">
 
                     <!-- PAYMENT STATUS -->
                     <div class="mt-5">
@@ -1787,7 +1772,7 @@ function submitPayment() {
 </div><!-- /container -->
     <footer style="background:linear-gradient(0deg,#f5e6c8,#fdf6e3);border-top:2px solid #d68b16;padding:20px;margin-top:40px;text-align:center;">
         <p class="text-xs" style="color:#7a4e0a;">
-            &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
+            &copy; 2026 MOTI JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
             Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
         </p>
     </footer>
@@ -1897,10 +1882,10 @@ function filterGramStock(query) {
         opt.dataset.price = p.price;
         opt.dataset.name = p.name;
         opt.dataset.serial = p.serial_no;
-        opt.dataset.huid = p.huid_code || '';
         opt.dataset.category = p.category;
         opt.dataset.itemName = p.item_name || p.name;
         opt.dataset.qty = p.quantity;
+        opt.dataset.huid = p.huid_code || p.serial_no || '';
         if (isOutOfStock) opt.style.color = '#dc2626';
         select.appendChild(opt);
     });
@@ -1954,6 +1939,12 @@ function onGramStockChange() {
     const qty      = parseFloat(opt.dataset.qty) || 0;      // DB: pieces in stock
     const name     = opt.dataset.itemName;
     const category = opt.dataset.category || '';
+    const huid     = opt.dataset.huid || '';
+
+    // Auto-fill HUID
+    if (document.getElementById('manualHuid')) {
+        document.getElementById('manualHuid').value = huid;
+    }
 
     // Use shop rate (per 10g) for this category — the correct billing rate
     const shopRatePerGram = getShopRateForCategory(category); // returns per-gram from shop rates
@@ -1979,11 +1970,6 @@ function onGramStockChange() {
     }
 
     infoDiv.classList.remove('hidden');
-    const huid = opt.dataset.huid || '';
-    const itemHuidInput = document.getElementById('itemHuid');
-    if (itemHuidInput) {
-        itemHuidInput.value = huid;
-    }
     autoGramTotal();
 }
 
@@ -2085,10 +2071,7 @@ function updateMakingChargeHint() {
     if (typeof currentMainTab === 'undefined' || currentMainTab === 'gram') {
         const checkedRadio = document.querySelector('input[name="gram_source"]:checked');
         const source = checkedRadio ? checkedRadio.value : (typeof currentGramSource !== 'undefined' ? currentGramSource : 'stock');
-        let weight = 0;
-        if (source === 'stock') weight = parseFloat(document.getElementById('gramWeight')?.value) || 0;
-        else if (source === 'category') weight = parseFloat(document.getElementById('gramWeightCat')?.value) || 0;
-        else weight = parseFloat(document.getElementById('gramWeightManual')?.value) || 0;
+        let weight = parseFloat(document.getElementById('gramWeight')?.value) || 0;
         const rate10g = parseFloat(document.getElementById('gramRate')?.value) || 0;
         const qty = parseFloat(document.getElementById('gramQty')?.value) || 1;
         baseAmount = weight * (rate10g / 10) * qty;
@@ -2118,14 +2101,7 @@ function autoGramTotal() {
     const source = checkedRadio ? checkedRadio.value : (typeof currentGramSource !== 'undefined' ? currentGramSource : 'stock');
     currentGramSource = source;
 
-    let weight = 0;
-    if (source === 'stock') {
-        weight = parseFloat(document.getElementById('gramWeight').value) || 0;
-    } else if (source === 'category') {
-        weight = parseFloat(document.getElementById('gramWeightCat').value) || 0;
-    } else {
-        weight = parseFloat(document.getElementById('gramWeightManual').value) || 0;
-    }
+    let weight = parseFloat(document.getElementById('gramWeight')?.value) || 0;
     
     const rate10g = parseFloat(document.getElementById('gramRate').value) || 0;
     const qty = parseFloat(document.getElementById('gramQty')?.value) || 1;
@@ -2164,8 +2140,8 @@ function submitGramItem() {
     let productId = 'other';
     let name = '';
     let itemType = '';
-    let hsn = '0';
-    let weight = 0;
+    let hsn = '7108';
+    let weight = parseFloat(document.getElementById('gramWeight')?.value) || 0;
     const rate10g = parseFloat(document.getElementById('gramRate').value) || 0;
     const qty = parseFloat(document.getElementById('gramQty')?.value) || 1;
     
@@ -2175,8 +2151,7 @@ function submitGramItem() {
         if (!opt || !opt.value) { alert('Please select a product from stock.'); return; }
         productId = opt.value;
         name = opt.dataset.itemName;
-        hsn = '0';
-        weight = parseFloat(document.getElementById('gramWeight').value) || 0;
+        hsn = '7108';
 
         // Stock pcs validation check
         const stockQty = parseFloat(opt.dataset.qty) || 0;
@@ -2215,11 +2190,9 @@ function submitGramItem() {
         name = type;  // e.g. "Jhumka"
         itemType = type;
         hsn = '7108';
-        weight = parseFloat(document.getElementById('gramWeightCat').value) || 0;
     } else {
         name = document.getElementById('gramManualName').value.trim();
         hsn = document.getElementById('gramManualHsn').value.trim() || '7108';
-        weight = parseFloat(document.getElementById('gramWeightManual').value) || 0;
         if (!name) { alert('Please enter an item description.'); return; }
     }
     
@@ -2248,6 +2221,8 @@ function submitGramItem() {
     const igst = document.getElementById('itemGstType').value;
     const itemTotal = parseFloat((baseAmount + imc + ihm - idisc).toFixed(2));
     
+    const inputHuid = document.getElementById('manualHuid') ? document.getElementById('manualHuid').value.trim() : '';
+
     items.push({
         product_id: productId,
         name: name + (qty > 1 && weight > 0 ? ' (' + qty + ' pcs)' : ''),
@@ -2267,8 +2242,8 @@ function submitGramItem() {
         gst_type: igst,
         is_manual: (source === 'manual'),
         is_item_only: (source === 'category'),
-        serial_no: (source === 'stock') ? (document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex]?.dataset.serial || '') : '',
-        huid_code: document.getElementById('itemHuid').value.trim()
+        serial_no: (source === 'stock') ? (document.getElementById('gramStockProduct').options[document.getElementById('gramStockProduct').selectedIndex].dataset.serial || inputHuid) : inputHuid,
+        huid_code: inputHuid
     });
     
     updateItemsList();
@@ -2277,10 +2252,8 @@ function submitGramItem() {
     
     // Reset fields
     document.getElementById('gramWeight').value = '';
-    document.getElementById('gramWeightCat').value = '';
-    document.getElementById('gramWeightManual').value = '';
     document.getElementById('gramRate').value = '';
-    document.getElementById('gramManualName').value = '';
+    if (document.getElementById('manualHuid')) document.getElementById('manualHuid').value = '';
     if (document.getElementById('gramQty')) document.getElementById('gramQty').value = '1';
     
     if (source === 'stock') {
@@ -2328,7 +2301,6 @@ function filterQtyStock(query) {
         opt.dataset.price = p.price;
         opt.dataset.name = p.name;
         opt.dataset.serial = p.serial_no;
-        opt.dataset.huid = p.huid_code || '';
         opt.dataset.category = p.category;
         opt.dataset.itemName = p.item_name || p.name;
         opt.dataset.qty = p.quantity;
@@ -2394,11 +2366,7 @@ function onQtyStockChange() {
         infoDiv.innerHTML = '<strong>' + name + '</strong> Selected. Price per Piece: ₹' + price.toFixed(2) + ' | Available Stock: <strong style="color:#059669;">' + qty + ' pcs</strong>';
     }
     infoDiv.classList.remove('hidden');
-    const huid = opt.dataset.huid || '';
-    const itemHuidInput = document.getElementById('itemHuid');
-    if (itemHuidInput) {
-        itemHuidInput.value = huid;
-    }
+    
     autoQtyTotal();
 }
 
@@ -2455,7 +2423,7 @@ function submitQtyItem() {
     let productId = 'other';
     let name = '';
     let itemType = '';
-    let hsn = '0';
+    let hsn = '7113';
     let qty = 0;
     let rate = parseFloat(document.getElementById('qtyRate').value) || 0;
     
@@ -2465,7 +2433,7 @@ function submitQtyItem() {
         if (!opt || !opt.value) { alert('Please select a product from stock.'); return; }
         productId = opt.value;
         name = opt.dataset.itemName;
-        hsn = '0';
+        hsn = '7113';
         qty = parseInt(document.getElementById('qtyCount').value) || 0;
 
         // Stock pcs validation check
@@ -2532,8 +2500,7 @@ function submitQtyItem() {
         gst_type: igst,
         is_manual: (source === 'manual'),
         is_item_only: (source === 'category'),
-        serial_no: (source === 'stock') ? (document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex]?.dataset.serial || '') : '',
-        huid_code: document.getElementById('itemHuid').value.trim()
+        serial_no: (source === 'stock') ? document.getElementById('qtyStockProduct').options[document.getElementById('qtyStockProduct').selectedIndex].dataset.serial : ''
     });
     
     updateItemsList();
@@ -2569,7 +2536,6 @@ function resetItemCharges() {
     document.getElementById('itemHallmark').value = '';
     document.getElementById('itemDiscount').value = '';
     document.getElementById('itemGstType').value = 'non_gst';
-    if (document.getElementById('itemHuid')) document.getElementById('itemHuid').value = '';
     const hint = document.getElementById('itemMakingChargeHint');
     if(hint) { hint.textContent = ''; hint.style.display = 'none'; }
 }
@@ -2610,14 +2576,12 @@ function updateItemsList() {
         const mcValDisp = (mcPct > 0) ? mcPct : '';
         const hmValDisp = (hm > 0) ? hm : '';
         const discValDisp = (disc > 0) ? disc : '';
-        const serialDisp = (item.serial_no && item.serial_no !== item.huid_code) ? '<div style="color:#9ca3af;font-size:10px;">SN: ' + htmlEsc(item.serial_no) + '</div>' : '';
-        const huidDisp = item.huid_code ? '<div style="color:#7a4e0a;font-size:10px;font-weight:600;">HUID: ' + htmlEsc(item.huid_code) + '</div>' : '';
         const chargeInputStyle = 'width:60px;padding:3px 4px;border:1px solid #e5c98a;border-radius:5px;font-size:11px;text-align:right;';
         html += '<tr>' +
             '<td class="px-2 py-2 text-xs text-center" style="color:#9ca3af;">' + (idx+1) + '</td>' +
             '<td class="px-2 py-2 text-xs" style="color:#374151;">' + icon + ' ' + htmlEsc(item.name) +
                 (item.item_type ? '<span style="color:#b5730e;font-size:10px;"> [' + htmlEsc(item.item_type) + ']</span>' : '') +
-                badge + huidDisp + serialDisp + '</td>' +
+                badge + '<div style="color:#9ca3af;font-size:10px;">HSN: ' + (item.hsn || '7108') + '</div></td>' +
             '<td class="px-2 py-2 text-center text-xs" style="color:#6b7280;">' + (item.quantity > 0 ? item.quantity : '\u2014') + '</td>' +
             '<td class="px-2 py-2 text-right text-xs" style="color:#374151;">' + (item.price > 0 ? '\u20B9' + item.price.toFixed(2) : '\u2014') + '</td>' +
             '<td class="px-2 py-2 text-right text-xs" style="color:#374151;">\u20B9' + base.toFixed(2) + '</td>' +
@@ -2675,20 +2639,20 @@ function updateItemGst(index, value) { if(items[index]) { items[index].gst_type 
 const AVAILABLE_HUIDS = <?php echo json_encode($available_huids); ?> || [];
 
 function getInvoiceHuid() {
-    const el = document.getElementById('itemHuid');
+    const el = document.getElementById('manualHuid');
     return el ? el.value.trim() : '';
 }
 function buildItemsForSubmit() {
     const huid = getInvoiceHuid();
     return items.map(function(it) {
         const out = Object.assign({}, it);
-        if (!out.huid_code && huid) out.huid_code = huid;
+        if (!out.serial_no && huid) out.serial_no = huid;
         return out;
     });
 }
 
 function populateHuidOptions() {
-    const input = document.getElementById('itemHuid');
+    const input = document.getElementById('manualHuid');
     const list = document.getElementById('huidList');
     if(!input || !list) return;
     const term = input.value.trim().toLowerCase();
@@ -2709,23 +2673,19 @@ function calculateTotal() {
     const discount  = items.reduce((sum, item) => sum + (item.discount || 0), 0);
     
     let cgst = 0, sgst = 0;
-    let hasGstItem = false;
+    const gstinEl = document.getElementById('customerGstin');
+    const hasGstin = gstinEl && gstinEl.value.trim().length > 0;
     
-    items.forEach(item => {
-        if (item.gst_type === 'gst_3') {
-            cgst += item.total * 0.015;
-            sgst += item.total * 0.015;
-            hasGstItem = true;
-        } else if (item.gst_type === 'gst_18') {
-            cgst += item.total * 0.09;
-            sgst += item.total * 0.09;
-            hasGstItem = true;
-        }
-    });
-
-    const hiddenGstType = document.getElementById('hiddenGstType');
-    if (hiddenGstType) {
-        hiddenGstType.value = (hasGstItem || (cgst + sgst) > 0) ? 'gst' : 'non_gst';
+    if (hasGstin) {
+        items.forEach(item => {
+            if (item.gst_type === 'gst_3') {
+                cgst += item.total * 0.015;
+                sgst += item.total * 0.015;
+            } else if (item.gst_type === 'gst_18') {
+                cgst += item.total * 0.09;
+                sgst += item.total * 0.09;
+            }
+        });
     }
 
     const oldGoldEl = document.getElementById('oldGoldAmountInput');
@@ -2753,9 +2713,6 @@ function calculateTotal() {
     document.getElementById('hiddenGst').value       = cgst + sgst;
     document.getElementById('hiddenTotal').value     = grand;
     document.getElementById('hiddenItems').value     = JSON.stringify(buildItemsForSubmit());
-    const firstHuid = items.length > 0 ? (items[0].huid_code || '') : '';
-    const hiddenInvHuid = document.getElementById('hiddenInvoiceHuid');
-    if (hiddenInvHuid) hiddenInvHuid.value = firstHuid;
     document.getElementById('hiddenMakingCharge').value = makingAmt;
     document.getElementById('hiddenHallmark').value  = hallmark;
     document.getElementById('hiddenDiscount').value  = discount;
@@ -3388,21 +3345,9 @@ document.getElementById('searchMobile').addEventListener('keydown', e => { if(e.
 
 // Form submit validation
 document.getElementById('billingForm').addEventListener('submit', function(e) {
-    if(items.length === 0) {
-        e.preventDefault();
-        alert('\u274C Please add at least one product to the bill first!');
-        return false;
-    }
-    if(!document.getElementById('customerName').value.trim()) {
-        e.preventDefault();
-        alert('\u274C Please enter customer name!');
-        return false;
-    }
-    if(!document.getElementById('customerMobile').value.trim()) {
-        e.preventDefault();
-        alert('\u274C Please enter customer mobile number!');
-        return false;
-    }
+    if(items.length === 0) { e.preventDefault(); alert('\u274C Please add at least one product!'); return false; }
+    if(!document.getElementById('customerName').value.trim()) { e.preventDefault(); alert('\u274C Please enter customer name!'); return false; }
+    if(!document.getElementById('customerMobile').value.trim()) { e.preventDefault(); alert('\u274C Please enter customer mobile number!'); return false; }
 
     // Aggregate requested stock pieces per product_id
     const reqPcsMap = {};
@@ -3452,8 +3397,8 @@ document.getElementById('customerEmail').addEventListener('input', updateReminde
 document.getElementById('dueDate').addEventListener('change', updateDueDateHint);
 document.getElementById('customerMobile').addEventListener('input', updateReminderButtonVisibility);
 document.getElementById('paymentStatus').addEventListener('change', updateReminderButtonVisibility);
-if(document.getElementById('itemHuid')) {
-    document.getElementById('itemHuid').addEventListener('input', populateHuidOptions);
+if(document.getElementById('manualHuid')) {
+    document.getElementById('manualHuid').addEventListener('input', populateHuidOptions);
 }
 if(ALL_PRODUCTS.length > 0) { filterProductSelect(''); }
 </script>

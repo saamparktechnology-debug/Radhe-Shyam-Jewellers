@@ -7,28 +7,54 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// AJAX: Get items for an invoice to populate Move to Stock modal
+// AJAX endpoint to get invoice items details
 if (isset($_GET['action']) && $_GET['action'] === 'get_invoice_items') {
     header('Content-Type: application/json');
-    $invoice_no = mysqli_real_escape_string($conn, $_GET['invoice_no'] ?? '');
+    $invoice_no = mysqli_real_escape_string($conn, trim($_GET['invoice_no'] ?? ''));
     $items = [];
-    $inv_res = mysqli_query($conn, "SELECT id FROM invoices WHERE invoice_no = '$invoice_no' LIMIT 1");
-    if ($inv_res && $inv_row = mysqli_fetch_assoc($inv_res)) {
-        $inv_id = intval($inv_row['id']);
-        $item_res = mysqli_query($conn, "SELECT ii.id, ii.product_id, ii.product_name, ii.quantity, ii.unit, COALESCE(ii.product_name, p.name) AS name FROM invoice_items ii LEFT JOIN products p ON ii.product_id = p.id WHERE ii.invoice_id = $inv_id");
-        if ($item_res) {
-            while ($r = mysqli_fetch_assoc($item_res)) {
-                $items[] = [
-                    'id' => $r['id'],
-                    'product_id' => $r['product_id'],
-                    'name' => !empty($r['product_name']) ? $r['product_name'] : ($r['name'] ?? 'Item'),
-                    'quantity' => floatval($r['quantity']),
-                    'unit' => $r['unit'] ?? 'g'
-                ];
+    if (!empty($invoice_no)) {
+        $chk = mysqli_query($conn, "SELECT id FROM invoices WHERE invoice_no = '$invoice_no'");
+        if ($chk && mysqli_num_rows($chk) > 0) {
+            $invoice = mysqli_fetch_assoc($chk);
+            $invoice_id = intval($invoice['id']);
+            
+            // Fetch items
+            $res = mysqli_query($conn, "
+                SELECT 
+                    ii.id, 
+                    ii.product_id, 
+                    ii.product_name, 
+                    ii.serial_no, 
+                    ii.huid_code, 
+                    ii.hsn_code, 
+                    ii.price, 
+                    ii.quantity,
+                    p.category,
+                    p.weight
+                FROM invoice_items ii 
+                LEFT JOIN products p ON ii.product_id = p.id 
+                WHERE ii.invoice_id = $invoice_id
+            ");
+            
+            if ($res) {
+                while ($row = mysqli_fetch_assoc($res)) {
+                    $items[] = [
+                        'id' => intval($row['id']),
+                        'product_id' => $row['product_id'] ? intval($row['product_id']) : null,
+                        'product_name' => $row['product_name'] ?? '',
+                        'serial_no' => $row['serial_no'] ?? '',
+                        'huid_code' => $row['huid_code'] ?? '',
+                        'hsn_code' => $row['hsn_code'] ?? '0',
+                        'price' => floatval($row['price'] ?? 0),
+                        'quantity' => floatval($row['quantity'] ?? 0),
+                        'category' => $row['category'] ?? '',
+                        'weight' => $row['weight'] ?? ''
+                    ];
+                }
             }
         }
     }
-    echo json_encode(['success' => true, 'items' => $items]);
+    echo json_encode($items);
     exit();
 }
 
@@ -37,79 +63,108 @@ $reset_success = '';
 $reset_error = '';
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_delete_invoice'])) {
     $invoice_no = mysqli_real_escape_string($conn, trim($_POST['invoice_no'] ?? ''));
-    $delete_option = trim($_POST['delete_option'] ?? 'permanent'); // 'permanent' or 'move_to_stock'
-    $restore_qtys = $_POST['restore_qty'] ?? []; // array of item_id => qty_to_restore
-
+    $delete_mode = $_POST['delete_mode'] ?? 'restore_stock';
     if (empty($invoice_no)) {
         $reset_error = "Error: Invoice number is missing.";
     } else {
         mysqli_query($conn, "SET FOREIGN_KEY_CHECKS = 0");
         $success = false;
-
+        
         $chk = mysqli_query($conn, "SELECT id FROM invoices WHERE invoice_no = '$invoice_no'");
         if ($chk && mysqli_num_rows($chk) > 0) {
             $invoice = mysqli_fetch_assoc($chk);
-            $invoice_id = intval($invoice['id']);
-
-            if ($delete_option === 'move_to_stock' && is_array($restore_qtys)) {
-                foreach ($restore_qtys as $item_id => $qty_val) {
-                    $item_id = intval($item_id);
-                    $restore_qty = floatval($qty_val);
-                    if ($restore_qty > 0) {
-                        $it_res = mysqli_query($conn, "SELECT * FROM invoice_items WHERE id = $item_id AND invoice_id = $invoice_id LIMIT 1");
-                        if ($it_res && $it_row = mysqli_fetch_assoc($it_res)) {
-                            $pid = intval($it_row['product_id']);
-                            if ($pid > 0) {
-                                // Check if product still exists
-                                $p_check = mysqli_query($conn, "SELECT id FROM products WHERE id = $pid LIMIT 1");
-                                if ($p_check && mysqli_num_rows($p_check) > 0) {
-                                    mysqli_query($conn, "UPDATE products SET quantity = quantity + $restore_qty WHERE id = $pid");
-                                } else {
-                                    // Product was deleted from products table, so we re-create it!
-                                    $p_name = mysqli_real_escape_string($conn, $it_row['product_name']);
-                                    $p_serial = mysqli_real_escape_string($conn, $it_row['serial_no']);
-                                    $p_huid = mysqli_real_escape_string($conn, $it_row['huid_code']);
-                                    $p_price = floatval($it_row['price']);
-                                    $p_cat = 'Gold 22K';
-                                    if (stripos($p_name, 'silver') !== false || $it_row['unit'] === 'pcs') {
-                                        $p_cat = 'Silver';
+            $invoice_id = $invoice['id'];
+            
+            if ($delete_mode === 'restore_stock') {
+                if (isset($_POST['items_restore'])) {
+                    $restore_items = json_decode($_POST['items_restore'], true);
+                    if (is_array($restore_items)) {
+                        foreach ($restore_items as $item) {
+                            $product_id = intval($item['product_id'] ?? 0);
+                            $restore_qty = floatval($item['restore_qty'] ?? 0);
+                            $hsn_code = mysqli_real_escape_string($conn, $item['hsn_code'] ?? '0');
+                            $product_name = mysqli_real_escape_string($conn, $item['product_name'] ?? '');
+                            $serial_no = mysqli_real_escape_string($conn, $item['serial_no'] ?? '');
+                            $huid_code = mysqli_real_escape_string($conn, $item['huid_code'] ?? '');
+                            $price = floatval($item['price'] ?? 0);
+                            $unit = mysqli_real_escape_string($conn, $item['unit'] ?? '');
+                            $category = mysqli_real_escape_string($conn, $item['category'] ?? '');
+                            $weight = mysqli_real_escape_string($conn, $item['weight'] ?? '');
+                            
+                            if ($restore_qty > 0) {
+                                $product_exists = false;
+                                if ($product_id > 0) {
+                                    $p_chk = mysqli_query($conn, "SELECT id FROM products WHERE id = $product_id");
+                                    if ($p_chk && mysqli_num_rows($p_chk) > 0) {
+                                        $product_exists = true;
                                     }
-                                    mysqli_query($conn, "INSERT INTO products (id, serial_no, name, item_name, category, price, quantity, huid_code) 
-                                                         VALUES ($pid, '$p_serial', '$p_name', '$p_name', '$p_cat', $p_price, $restore_qty, '$p_huid')");
                                 }
-                            } else {
-                                // Ad-hoc manually added item
-                                $p_name = mysqli_real_escape_string($conn, $it_row['product_name']);
-                                $p_serial = mysqli_real_escape_string($conn, $it_row['serial_no']);
-                                $p_huid = mysqli_real_escape_string($conn, $it_row['huid_code']);
-                                $p_price = floatval($it_row['price']);
-                                $p_cat = 'Gold 22K';
-                                if (stripos($p_name, 'silver') !== false) {
-                                    $p_cat = 'Silver';
+                                
+                                if ($product_exists) {
+                                    mysqli_query($conn, "UPDATE products SET quantity = quantity + $restore_qty, hsn_code = '$hsn_code' WHERE id = $product_id");
+                                } else {
+                                    // Re-insert product back to stock
+                                    if (empty($category)) {
+                                        if (stripos($product_name, 'gold') !== false) {
+                                            $category = 'Gold 22K';
+                                        } else if (stripos($product_name, 'silver') !== false) {
+                                            $category = 'Silver';
+                                        } else {
+                                            $category = 'Others';
+                                        }
+                                    }
+                                    
+                                    // Insert product
+                                    mysqli_query($conn, "INSERT INTO products (serial_no, name, item_name, category, weight, price, quantity, huid_code, hsn_code, created_at) VALUES ('$serial_no', '$product_name', '$product_name', '$category', '$weight', $price, $restore_qty, '$huid_code', '$hsn_code', NOW())");
                                 }
-                                mysqli_query($conn, "INSERT INTO products (serial_no, name, item_name, category, price, quantity, huid_code) 
-                                                     VALUES ('$p_serial', '$p_name', '$p_name', '$p_cat', $p_price, $restore_qty, '$p_huid')");
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback to original restore behavior if items_restore wasn't submitted (e.g. legacy/direct form POST)
+                    $items_res = mysqli_query($conn, "SELECT product_id, quantity FROM invoice_items WHERE invoice_id = $invoice_id");
+                    if ($items_res) {
+                        while ($item = mysqli_fetch_assoc($items_res)) {
+                            if (!empty($item['product_id']) && floatval($item['quantity']) > 0) {
+                                $pid = intval($item['product_id']);
+                                $p_qty = floatval($item['quantity']);
+                                $p_chk = mysqli_query($conn, "SELECT id FROM products WHERE id = $pid");
+                                if ($p_chk && mysqli_num_rows($p_chk) > 0) {
+                                    mysqli_query($conn, "UPDATE products SET quantity = quantity + $p_qty WHERE id = $pid");
+                                } else {
+                                    // Fetch item details to re-insert
+                                    $item_detail = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM invoice_items WHERE invoice_id = $invoice_id AND product_id = $pid LIMIT 1"));
+                                    if ($item_detail) {
+                                        $name = mysqli_real_escape_string($conn, $item_detail['product_name']);
+                                        $serial = mysqli_real_escape_string($conn, $item_detail['serial_no']);
+                                        $huid = mysqli_real_escape_string($conn, $item_detail['huid_code']);
+                                        $hsn = mysqli_real_escape_string($conn, $item_detail['hsn_code'] ?? '0');
+                                        $price = floatval($item_detail['price']);
+                                        $cat = (stripos($name, 'gold') !== false) ? 'Gold 22K' : ((stripos($name, 'silver') !== false) ? 'Silver' : 'Others');
+                                        mysqli_query($conn, "INSERT INTO products (serial_no, name, item_name, category, weight, price, quantity, huid_code, hsn_code, created_at) VALUES ('$serial', '$name', '$name', '$cat', '', $price, $p_qty, '$huid', '$hsn', NOW())");
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
-            // Delete invoice items and invoice
-            mysqli_query($conn, "DELETE FROM invoice_items WHERE invoice_id = $invoice_id");
+            
+            // Delete invoice
             $q = mysqli_query($conn, "DELETE FROM invoices WHERE id = $invoice_id");
             if ($q) {
                 $success = true;
-                $reset_success = ($delete_option === 'move_to_stock')
-                    ? "Invoice #$invoice_no deleted and selected quantities restored to stock."
-                    : "Invoice #$invoice_no permanently deleted (stock unchanged).";
+                $reset_success = "Invoice #$invoice_no has been successfully deleted.";
+                if ($delete_mode === 'restore_stock') {
+                    $reset_success .= " Specified quantities have been moved back to stock.";
+                }
             } else {
                 $reset_error = "Error deleting invoice: " . mysqli_error($conn);
             }
         } else {
             $reset_error = "Error: Invoice #$invoice_no not found.";
         }
-
+        
         mysqli_query($conn, "SET FOREIGN_KEY_CHECKS = 1");
         
         if ($success) {
@@ -157,27 +212,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_reset_report'])
                         $invoice_id = $invoice['id'];
                         
                         // Restore product quantities
-                        $items_res = mysqli_query($conn, "SELECT * FROM invoice_items WHERE invoice_id = $invoice_id");
+                        $items_res = mysqli_query($conn, "SELECT product_id, quantity FROM invoice_items WHERE invoice_id = $invoice_id");
                         if ($items_res) {
-                            while ($it_row = mysqli_fetch_assoc($items_res)) {
-                                $pid = intval($it_row['product_id']);
-                                $restore_qty = floatval($it_row['quantity']);
-                                if ($pid > 0 && $restore_qty > 0) {
-                                    $p_check = mysqli_query($conn, "SELECT id FROM products WHERE id = $pid LIMIT 1");
-                                    if ($p_check && mysqli_num_rows($p_check) > 0) {
-                                        mysqli_query($conn, "UPDATE products SET quantity = quantity + $restore_qty WHERE id = $pid");
-                                    } else {
-                                        $p_name = mysqli_real_escape_string($conn, $it_row['product_name']);
-                                        $p_serial = mysqli_real_escape_string($conn, $it_row['serial_no']);
-                                        $p_huid = mysqli_real_escape_string($conn, $it_row['huid_code']);
-                                        $p_price = floatval($it_row['price']);
-                                        $p_cat = 'Gold 22K';
-                                        if (stripos($p_name, 'silver') !== false || $it_row['unit'] === 'pcs') {
-                                            $p_cat = 'Silver';
-                                        }
-                                        mysqli_query($conn, "INSERT INTO products (id, serial_no, name, item_name, category, price, quantity, huid_code) 
-                                                             VALUES ($pid, '$p_serial', '$p_name', '$p_name', '$p_cat', $p_price, $restore_qty, '$p_huid')");
-                                    }
+                            while ($item = mysqli_fetch_assoc($items_res)) {
+                                if (!empty($item['product_id']) && floatval($item['quantity']) > 0) {
+                                    mysqli_query($conn, "UPDATE products SET quantity = quantity + " . floatval($item['quantity']) . " WHERE id = " . intval($item['product_id']));
                                 }
                             }
                         }
@@ -425,14 +464,14 @@ while($r = mysqli_fetch_assoc($bills_result)) $bills_rows[] = $r;
 $total_bills_amount = array_sum(array_column($bills_rows, 'total_amount'));
 $total_bills_count  = count($bills_rows);
 
-$logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
+$logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Reports - RADHE SHYAM JEWELLERS</title>
+    <title>Reports - MOTI JEWELLERS</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -636,7 +675,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
         }
     }
 
-    const texts = ["RADHE SHYAM JEWELLERS"];
+    const texts = ["MOTI JEWELLERS"];
     let textIndex = 0, charIndex = 0, isDeleting = false, typingSpeed = 100;
 
     function typeEffect() {
@@ -705,7 +744,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
             
             
             <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
-                <img src="assets/images/radhey_shyam_logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
+                <img src="logo.png" alt="MOTI JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
 
@@ -742,7 +781,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
         if(!$logo_found) echo '<i class="fas fa-gem" style="color:#fff;font-size:30px;flex-shrink:0;"></i>';
         ?>
         <div class="sidebar-logo-text">
-            <h2>RADHE SHYAM JEWELLERS</h2>
+            <h2>MOTI JEWELLERS</h2>
             <p>Premium Since 2026</p>
         </div>
     </div>
@@ -753,6 +792,9 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
         <a href="billing.php"><i class="fas fa-receipt"></i> BILLING</a>
         <a href="stock.php"><i class="fas fa-boxes"></i> STOCK</a>
         <a href="customers.php"><i class="fas fa-users"></i> CUSTOMERS</a>
+        <a href="sanchari_dashboard.php">
+            <i class="fas fa-piggy-bank"></i> SANCHAY SCHEME
+        </a>
 
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Analytics</div>
@@ -1231,7 +1273,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
 
     <footer>
         <p class="text-xs" style="color:#7a4e0a;">
-            &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
+            &copy; 2026 MOTI JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
             Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
         </p>
     </footer>
@@ -1376,7 +1418,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
 
         // Sheet 1 — All Bills
         const aoa1 = [];
-        aoa1.push(['💎 RADHE SHYAM JEWELLERS', '', '', '', '', '', '', '', '', '', '', '']);
+        aoa1.push(['💎 MOTI JEWELLERS', '', '', '', '', '', '', '', '', '', '', '']);
         aoa1.push(['All Bills Report — Generated: ' + today, '', '', '', '', '', '', '', '', '', '', '']);
         aoa1.push([]);
         aoa1.push(['Total Bills', billsData.length, '', 'Total Amount', inrFmt(totalAmt), '', 'Total GST Collected', inrFmt(totalGST), '', 'Balance Due', inrFmt(totalBalance), '']);
@@ -1410,7 +1452,7 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
 
         // Sheet 2 — Payment Summary
         const aoa2 = [];
-        aoa2.push(['💎 RADHE SHYAM JEWELLERS — Payment Summary']);
+        aoa2.push(['💎 MOTI JEWELLERS — Payment Summary']);
         aoa2.push(['Generated: ' + today]);
         aoa2.push([]);
         aoa2.push(['Category', 'Count', 'Amount (₹)']);
@@ -1443,132 +1485,209 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
 
         XLSX.writeFile(wb, `Radhe ShyamJewellers_Report_${todayFile}.xlsx`);
     }
-</script>
 
-<!-- Delete Invoice Option Modal -->
-<div id="deleteInvoiceModal" class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:#fff;border-radius:18px;width:100%;max-width:540px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.3);border:2px solid #d68b16;">
-        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px solid #f1e5cd;padding-bottom:12px;margin-bottom:16px;">
-            <h3 style="color:#800020;font-size:17px;font-weight:700;margin:0;">🗑️ Delete Invoice #<span id="modalInvoiceNoText"></span></h3>
-            <button type="button" onclick="closeDeleteModal()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;">✕</button>
-        </div>
-
-        <form method="POST" action="reports.php" id="deleteModalForm">
-            <input type="hidden" name="action_delete_invoice" value="1">
-            <input type="hidden" name="invoice_no" id="modalInvoiceNoInput" value="">
-            <input type="hidden" name="delete_option" id="modalDeleteOption" value="permanent">
-
-            <!-- Step 1: Choose Action -->
-            <div id="deleteStepChoice">
-                <p style="color:#475569;font-size:13.5px;margin-bottom:16px;line-height:1.5;">
-                    Please choose how you want to handle this deletion:
-                </p>
-                
-                <div style="display:flex;flex-direction:column;gap:12px;">
-                    <button type="button" onclick="chooseDeleteOption('move_to_stock')" 
-                            style="background:linear-gradient(135deg,#7a4e0a,#d68b16);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(214,139,22,0.25);">
-                        📦 Move Items Back to Stock &amp; Delete
-                    </button>
-                    <button type="button" onclick="chooseDeleteOption('permanent')" 
-                            style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:12px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-                        🚨 Permanent Delete (Do NOT restore stock)
-                    </button>
-                </div>
-            </div>
-
-            <!-- Step 2: Move to Stock Qty Form -->
-            <div id="deleteStepStock" style="display:none;">
-                <p style="color:#7a4e0a;font-size:13px;margin-bottom:12px;font-weight:600;">
-                    📦 Specify how much quantity to move back into stock for each item:
-                </p>
-                <div id="modalItemsContainer" style="max-height:220px;overflow-y:auto;background:#fdf6e3;border:1px solid #e5c98a;border-radius:10px;padding:12px;margin-bottom:16px;">
-                    <div style="text-align:center;color:#94a3af;font-size:12px;">Loading items...</div>
-                </div>
-                
-                <div style="display:flex;gap:10px;justify-content:flex-end;">
-                    <button type="button" onclick="backToDeleteChoice()" style="background:#e2e8f0;color:#475569;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;">← Back</button>
-                    <button type="submit" style="background:#059669;color:#fff;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(5,150,105,0.3);">
-                        💾 Save &amp; Move to Stock
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
     let currentDeleteInvoiceNo = '';
+    let currentDeleteMode = '';
+    let invoiceItemsCache = [];
 
     function confirmDeleteInvoice(invoiceNo) {
         currentDeleteInvoiceNo = invoiceNo;
-        document.getElementById('modalInvoiceNoText').textContent = invoiceNo;
-        document.getElementById('modalInvoiceNoInput').value = invoiceNo;
-        document.getElementById('deleteStepChoice').style.display = 'block';
-        document.getElementById('deleteStepStock').style.display = 'none';
-        document.getElementById('deleteInvoiceModal').style.display = 'flex';
-    }
-
-    function closeDeleteModal() {
-        document.getElementById('deleteInvoiceModal').style.display = 'none';
-    }
-
-    function chooseDeleteOption(option) {
-        document.getElementById('modalDeleteOption').value = option;
-        if (option === 'permanent') {
-            if (confirm("🚨 Confirm Permanent Delete: Are you sure you want to permanently delete Invoice #" + currentDeleteInvoiceNo + " without restoring stock?")) {
-                document.getElementById('deleteModalForm').submit();
-            }
-        } else if (option === 'move_to_stock') {
-            document.getElementById('deleteStepChoice').style.display = 'none';
-            document.getElementById('deleteStepStock').style.display = 'block';
-            loadInvoiceItemsForStock(currentDeleteInvoiceNo);
-        }
-    }
-
-    function backToDeleteChoice() {
-        document.getElementById('deleteStepChoice').style.display = 'block';
-        document.getElementById('deleteStepStock').style.display = 'none';
-    }
-
-    function loadInvoiceItemsForStock(invoiceNo) {
-        const container = document.getElementById('modalItemsContainer');
-        container.innerHTML = '<div style="text-align:center;padding:16px;color:#7a4e0a;font-size:12px;">⏳ Loading invoice items...</div>';
+        currentDeleteMode = '';
+        
+        // Reset modal UI
+        document.getElementById('deleteInvoiceNoText').textContent = invoiceNo;
+        document.getElementById('btnDeletePerm').className = 'flex-1 py-3 px-4 rounded-xl border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 font-semibold text-xs transition duration-200 text-center cursor-pointer';
+        document.getElementById('btnDeleteRestore').className = 'flex-1 py-3 px-4 rounded-xl border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 font-semibold text-xs transition duration-200 text-center cursor-pointer';
+        document.getElementById('restoreStockForm').classList.add('hidden');
+        document.getElementById('btnConfirmDeleteSubmit').disabled = true;
+        document.getElementById('btnConfirmDeleteSubmit').style.opacity = '0.5';
+        
+        // Open Modal
+        const modal = document.getElementById('deleteInvoiceModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        // Fetch invoice items dynamically
+        const itemsList = document.getElementById('restoreItemsList');
+        itemsList.innerHTML = '<div class="text-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading items...</div>';
         
         fetch('reports.php?action=get_invoice_items&invoice_no=' + encodeURIComponent(invoiceNo))
-            .then(r => r.json())
+            .then(response => response.json())
             .then(data => {
-                if (!data.success || !data.items || data.items.length === 0) {
-                    container.innerHTML = '<div style="color:#dc2626;font-size:12px;">No items found for this invoice. You can submit to complete deletion.</div>';
+                invoiceItemsCache = data;
+                itemsList.innerHTML = '';
+                
+                if (data.length === 0) {
+                    itemsList.innerHTML = '<p class="text-xs text-gray-500 text-center py-2">No items found in this invoice.</p>';
                     return;
                 }
-                let html = '';
-                data.items.forEach((item, idx) => {
-                    const qtyVal = parseFloat(item.quantity) || 0;
-                    const unitStr = item.unit || 'g';
-                    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">' +
-                        '<div style="flex:1;">' +
-                            '<div style="font-weight:700;color:#1e293b;font-size:13px;">' + (idx+1) + '. ' + htmlEsc(item.name) + '</div>' +
-                            '<div style="font-size:11px;color:#64748b;">Original Billed Qty: <strong>' + qtyVal + ' ' + unitStr + '</strong></div>' +
-                        '</div>' +
-                        '<div style="text-align:right;">' +
-                            '<label style="display:block;font-size:10px;color:#7a4e0a;font-weight:600;margin-bottom:2px;">Qty to Restore</label>' +
-                            '<input type="number" name="restore_qty[' + item.id + ']" value="' + qtyVal + '" step="0.001" min="0" max="' + qtyVal + '" ' +
-                                   'style="width:90px;padding:5px 8px;border:1.5px solid #d68b16;border-radius:6px;font-weight:700;text-align:right;font-size:13px;color:#065f46;">' +
-                        '</div>' +
-                    '</div>';
+                
+                data.forEach((item, index) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'p-3 bg-yellow-50 bg-opacity-50 rounded-xl border border-yellow-100 flex flex-col gap-2 mb-2';
+                    itemDiv.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-semibold text-gray-800">${item.product_name}</span>
+                            <span class="text-[10px] text-gray-500 font-mono">Sold: ${item.quantity} ${item.unit || 'pcs'}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-600 mb-1">Qty to Restore</label>
+                                <input type="number" id="restoreQty_${index}" value="${item.quantity}" step="0.001" min="0" max="${item.quantity}" class="jewel-input w-full rounded-lg px-2 py-1 text-xs" style="background:#fff;">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-gray-600 mb-1">HSN Code</label>
+                                <input type="text" id="restoreHsn_${index}" value="0" class="jewel-input w-full rounded-lg px-2 py-1 text-xs" style="background:#fff;">
+                            </div>
+                        </div>
+                    `;
+                    itemsList.appendChild(itemDiv);
                 });
-                container.innerHTML = html;
             })
             .catch(err => {
-                container.innerHTML = '<div style="color:#dc2626;font-size:12px;">Error loading items. Please try again.</div>';
+                console.error('Error fetching invoice items:', err);
+                itemsList.innerHTML = '<p class="text-xs text-red-500 text-center py-2">Failed to load invoice items.</p>';
             });
     }
 
-    function htmlEsc(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    function closeDeleteModal() {
+        const modal = document.getElementById('deleteInvoiceModal');
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+
+    function selectDeleteMode(mode) {
+        currentDeleteMode = mode;
+        const btnSubmit = document.getElementById('btnConfirmDeleteSubmit');
+        btnSubmit.disabled = false;
+        btnSubmit.style.opacity = '1';
+        
+        const btnPerm = document.getElementById('btnDeletePerm');
+        const btnRestore = document.getElementById('btnDeleteRestore');
+        const form = document.getElementById('restoreStockForm');
+        
+        if (mode === 'permanent') {
+            btnPerm.className = 'flex-1 py-3 px-4 rounded-xl border-2 border-red-600 text-red-700 bg-red-100 font-bold text-xs transition duration-200 text-center cursor-pointer';
+            btnRestore.className = 'flex-1 py-3 px-4 rounded-xl border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 font-semibold text-xs transition duration-200 text-center cursor-pointer';
+            form.classList.add('hidden');
+        } else {
+            btnRestore.className = 'flex-1 py-3 px-4 rounded-xl border-2 border-green-600 text-green-700 bg-green-100 font-bold text-xs transition duration-200 text-center cursor-pointer';
+            btnPerm.className = 'flex-1 py-3 px-4 rounded-xl border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 font-semibold text-xs transition duration-200 text-center cursor-pointer';
+            form.classList.remove('hidden');
+        }
+    }
+
+    function submitDeleteInvoiceAction() {
+        if (!currentDeleteMode) return;
+        
+        let confirmMsg = '';
+        if (currentDeleteMode === 'permanent') {
+            confirmMsg = "⚠️ FINAL WARNING: This action is permanent and CANNOT be undone.\nAre you sure you want to delete Invoice #" + currentDeleteInvoiceNo + " permanently (without restoring stock)?";
+        } else {
+            confirmMsg = "Are you sure you want to delete Invoice #" + currentDeleteInvoiceNo + " and move the specified quantities back to stock?";
+        }
+        
+        if (!confirm(confirmMsg)) return;
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'reports.php';
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action_delete_invoice';
+        actionInput.value = '1';
+        form.appendChild(actionInput);
+        
+        const invoiceInput = document.createElement('input');
+        invoiceInput.type = 'hidden';
+        invoiceInput.name = 'invoice_no';
+        invoiceInput.value = currentDeleteInvoiceNo;
+        form.appendChild(invoiceInput);
+        
+        const modeInput = document.createElement('input');
+        modeInput.type = 'hidden';
+        modeInput.name = 'delete_mode';
+        modeInput.value = currentDeleteMode;
+        form.appendChild(modeInput);
+        
+        if (currentDeleteMode === 'restore_stock') {
+            const restoreData = invoiceItemsCache.map((item, index) => {
+                const qtyInput = document.getElementById('restoreQty_' + index);
+                const hsnInput = document.getElementById('restoreHsn_' + index);
+                
+                return {
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    serial_no: item.serial_no || '',
+                    huid_code: item.huid_code || '',
+                    price: item.price || 0,
+                    unit: item.unit || '',
+                    category: item.category || '',
+                    weight: item.weight || '',
+                    restore_qty: parseFloat(qtyInput ? qtyInput.value : item.quantity) || 0,
+                    hsn_code: hsnInput ? hsnInput.value.trim() : '0'
+                };
+            });
+            
+            const restoreInput = document.createElement('input');
+            restoreInput.type = 'hidden';
+            restoreInput.name = 'items_restore';
+            restoreInput.value = JSON.stringify(restoreData);
+            form.appendChild(restoreInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 </script>
+
+<!-- Custom Delete Invoice Modal -->
+<div id="deleteInvoiceModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black bg-opacity-60 backdrop-filter backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl border border-yellow-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-transform duration-300">
+        <!-- Modal Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-red-800 to-red-600 flex justify-between items-center text-white">
+            <h3 class="text-sm font-bold flex items-center gap-2">
+                <i class="fas fa-trash-alt"></i> Delete Invoice #<span id="deleteInvoiceNoText"></span>
+            </h3>
+            <button onclick="closeDeleteModal()" class="text-white hover:text-gray-200 text-xl font-bold">&times;</button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+            <p class="text-xs text-gray-600">
+                Choose how you want to handle the items in this invoice when deleting it:
+            </p>
+            
+            <div class="flex gap-3">
+                <button type="button" onclick="selectDeleteMode('permanent')" id="btnDeletePerm" class="flex-1 py-3 px-4 rounded-xl border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 font-semibold text-xs transition duration-200 text-center cursor-pointer">
+                    🗑️ Delete Permanently<br><span class="text-[9px] font-normal text-red-500">(Stock is NOT updated)</span>
+                </button>
+                <button type="button" onclick="selectDeleteMode('restore_stock')" id="btnDeleteRestore" class="flex-1 py-3 px-4 rounded-xl border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 font-semibold text-xs transition duration-200 text-center cursor-pointer">
+                    📦 Move to Stock<br><span class="text-[9px] font-normal text-green-500">(Add items to inventory)</span>
+                </button>
+            </div>
+            
+            <!-- Items Form (Visible only when 'restore_stock' is selected) -->
+            <div id="restoreStockForm" class="hidden space-y-3 pt-3 border-t border-dashed border-gray-200">
+                <h4 class="text-xs font-bold text-yellow-800 uppercase tracking-wider">Quantities & HSN to move back:</h4>
+                <div class="space-y-1" id="restoreItemsList">
+                    <!-- Dynamic Items list populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="px-5 py-3 bg-gray-50 flex justify-end gap-2.5 border-t border-gray-100">
+            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs font-semibold rounded-lg transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="btnConfirmDeleteSubmit" onclick="submitDeleteInvoiceAction()" disabled class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition cursor-pointer">
+                Confirm Delete
+            </button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
 
