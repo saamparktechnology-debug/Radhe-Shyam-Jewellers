@@ -813,6 +813,7 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('active');
     document.getElementById('burgerMenu').classList.remove('active');
     document.body.style.overflow = '';
+}
 function filterDueTable(query) {
     const term = query.trim().toLowerCase();
     const rows = document.querySelectorAll('.due-table tbody tr');
