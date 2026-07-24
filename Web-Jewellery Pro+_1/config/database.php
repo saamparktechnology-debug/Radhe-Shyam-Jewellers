@@ -1,80 +1,84 @@
 <?php
-$host     = getenv('DB_HOST') ?: '127.0.0.1';
-$user     = getenv('DB_USER') ?: 'root';
-$password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'RootPaas123';
-$database = getenv('DB_NAME') ?: 'moti';
-
-// Turn off mysqli exception throwing temporarily during connection attempt
+// Disable temporary exception throwing to handle fallback connection gracefully
 mysqli_report(MYSQLI_REPORT_OFF);
 
+// Possible database names for Radhe Shyam Jewellers
+$possible_db_names = array_unique(array_filter([
+    getenv('DB_NAME'),
+    'radhe_shyam_jewellers',
+    'radhe_shyam',
+    'moti'
+]));
+
+// List of credential sets to attempt (aaPanel VPS, Hostinger, XAMPP Local)
+$credentials = [
+    // [Host, User, Password]
+    ['127.0.0.1', 'root', 'RootPass123'], // Hostinger / aaPanel VPS default
+    ['localhost', 'root', 'RootPass123'],
+    ['127.0.0.1', 'root', 'RootPaas123'],
+    ['localhost', 'root', 'RootPaas123'],
+    ['127.0.0.1', 'root', ''],            // XAMPP Local default
+    ['localhost', 'root', ''],
+];
+
 $conn = false;
-$errors = [];
+$connection_errors = [];
 
-// Standard Linux / aaPanel socket locations
-$possible_sockets = [
-    '/tmp/mysql.sock',
-    '/var/run/mysqld/mysqld.sock',
-    '/var/lib/mysql/mysql.sock'
-];
-
-$targets = [
-    ['host' => '127.0.0.1', 'port' => 3306, 'socket' => null],
-    ['host' => 'localhost', 'port' => 3306, 'socket' => null],
-];
-
-foreach ($possible_sockets as $sock) {
-    if (file_exists($sock)) {
-        array_unshift($targets, ['host' => 'localhost', 'port' => 3306, 'socket' => $sock]);
-    }
-}
-
-// Passwords to attempt if primary fails
-$passwords_to_try = array_unique(array_filter([$password, 'RootPaas123', '', 'root', '123456'], function($val) { return $val !== null; }));
-
-foreach ($targets as $t) {
-    foreach ($passwords_to_try as $p) {
-        $c = @mysqli_connect($t['host'], $user, $p, $database, $t['port'], $t['socket']);
+foreach ($credentials as $cred) {
+    list($h, $u, $p) = $cred;
+    
+    // 1. Attempt connecting directly to any existing target database
+    foreach ($possible_db_names as $dbname) {
+        $c = @mysqli_connect($h, $u, $p, $dbname);
         if ($c) {
             $conn = $c;
+            $host = $h;
+            $user = $u;
+            $password = $p;
+            $database = $dbname;
             break 2;
-        } else {
-            $err = mysqli_connect_error();
-            if ($err) $errors[] = $t['host'] . ($t['socket'] ? " ({$t['socket']})" : "") . ": " . $err;
         }
     }
-}
-
-// If DB doesn't exist yet, try creating it
-if (!$conn) {
-    foreach ($targets as $t) {
-        foreach ($passwords_to_try as $p) {
-            $c = @mysqli_connect($t['host'], $user, $p, '', $t['port'], $t['socket']);
-            if ($c) {
-                @mysqli_query($c, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                @mysqli_close($c);
-                $conn = @mysqli_connect($t['host'], $user, $p, $database, $t['port'], $t['socket']);
-                if ($conn) break 2;
-            }
+    
+    // 2. If database doesn't exist yet, connect to MySQL server to create 'radhe_shyam_jewellers' automatically
+    $c_nodb = @mysqli_connect($h, $u, $p);
+    if ($c_nodb) {
+        $target_db = reset($possible_db_names) ?: 'radhe_shyam_jewellers';
+        @mysqli_query($c_nodb, "CREATE DATABASE IF NOT EXISTS `$target_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        if (@mysqli_select_db($c_nodb, $target_db)) {
+            $conn = $c_nodb;
+            $host = $h;
+            $user = $u;
+            $password = $p;
+            $database = $target_db;
+            break;
         }
     }
+    
+    $err = mysqli_connect_error() ?: 'Access denied or server unreachable';
+    $connection_errors[] = "$h ($u): $err";
 }
 
-// Restore default mysqli report mode
+// Re-enable exceptions for standard behavior
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 if (!$conn) {
-    $err_details = !empty($errors) ? implode(' | ', array_unique($errors)) : 'MySQL service unreachable';
-    die("<div style='font-family:sans-serif;padding:30px;background:#fff5f5;border:1px solid #feb2b2;color:#9b2c2c;margin:40px auto;max-width:640px;border-radius:8px;'>"
-        . "<h3 style='margin-top:0;'>⚠️ Database Connection Failed (aaPanel / VPS)</h3>"
-        . "<p><strong>Diagnostic details:</strong><br><code style='background:#edf2f7;padding:4px 8px;border-radius:4px;font-size:12px;'>" . htmlspecialchars($err_details) . "</code></p>"
-        . "<hr style='border:0;border-top:1px solid #feb2b2;margin:15px 0;'>"
-        . "<p><strong>aaPanel / VPS Fix Commands:</strong></p>"
-        . "<ol style='padding-left:20px;font-size:13px;line-height:1.8;'>"
-        . "<li>Restart MySQL on aaPanel:<br><code>/etc/init.d/mysqld restart</code></li>"
-        . "<li>Check aaPanel MySQL root password:<br>aaPanel Panel &rarr; Databases &rarr; Root Password, or run <code>cat /www/server/pass.txt</code></li>"
-        . "<li>Set your password in <code>config/database.php</code> (line 4: <code>\$password = 'YOUR_DB_PASS';</code>)</li>"
-        . "</ol>"
-        . "</div>");
+    http_response_code(500);
+    echo '<!DOCTYPE html><html><head><title>Database Connection Error</title>';
+    echo '<style>body{font-family:"Poppins",sans-serif;background:#0d1117;color:#c9d1d9;padding:40px;line-height:1.6;}';
+    echo '.card{background:#161b22;padding:30px;border-radius:12px;max-width:720px;margin:0 auto;border:1px solid #30363d;box-shadow:0 10px 30px rgba(0,0,0,0.5);}';
+    echo 'h2{color:#f85149;margin-top:0;display:flex;align-items:center;gap:10px;}';
+    echo 'code{background:#21262d;padding:4px 8px;border-radius:6px;color:#ec6cb9;font-family:monospace;font-size:14px;}';
+    echo 'ul{margin-top:10px;padding-left:20px;} li{margin-bottom:12px;}';
+    echo '.diagnostic{background:#0d1117;padding:12px;border-radius:8px;border:1px solid #21262d;color:#8b949e;font-size:13px;word-break:break-all;}';
+    echo '</style></head><body>';
+    echo '<div class="card">';
+    echo '<h2>⚠️ Database Connection Failed</h2>';
+    echo '<p>Unable to connect to MySQL database <code>' . htmlspecialchars($db_name) . '</code> for Radhe Shyam Jewellers.</p>';
+    echo '<h4>Diagnostic details:</h4>';
+    echo '<div class="diagnostic">' . htmlspecialchars(implode(' | ', $connection_errors)) . '</div>';
+    echo '</div></body></html>';
+    exit();
 }
 
 // Set timezone
