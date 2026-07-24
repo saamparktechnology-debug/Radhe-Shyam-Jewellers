@@ -175,11 +175,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_password'])) {
         } else {
             $hashed    = password_hash($new_pass, PASSWORD_DEFAULT);
             $email_esc = mysqli_real_escape_string($conn, $email);
-            if ($user_id > 0) {
-                $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE id='$user_id'");
-            } else {
-                $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE email='$email_esc' OR mobile='$email_esc' OR LOWER(email)=LOWER('$email_esc')");
+            $uid_esc   = intval($user_id);
+
+            $where_cond = "1=0";
+            if ($uid_esc > 0) {
+                $where_cond .= " OR id=$uid_esc";
             }
+            if (!empty($email_esc)) {
+                $where_cond .= " OR email='$email_esc' OR mobile='$email_esc' OR LOWER(email)=LOWER('$email_esc')";
+            }
+
+            $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE $where_cond");
 
             if ($upd) {
                 unset($_SESSION['fp_step'], $_SESSION['fp_user_id'], $_SESSION['fp_email'],
