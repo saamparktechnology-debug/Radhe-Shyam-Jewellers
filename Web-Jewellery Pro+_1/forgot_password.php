@@ -52,9 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_otp'])) {
 
             $mailRes = sendSMTPMail($email, $subject, $body);
 
-            $_SESSION['fp_step']  = 'otp';
-            $_SESSION['fp_email'] = $email;
-            $_SESSION['fp_name']  = $user['name'];
+            $_SESSION['fp_step']    = 'otp';
+            $_SESSION['fp_user_id'] = $user['id'];
+            $_SESSION['fp_email']   = $email;
+            $_SESSION['fp_name']    = $user['name'];
             $step = 'otp';
 
             if ($mailRes['success']) {
@@ -100,9 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verify_otp'])) {
 
 // ── STEP 3: Reset Password ───────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_password'])) {
-    $email = $_SESSION['fp_email'] ?? '';
+    $email   = $_SESSION['fp_email'] ?? '';
+    $user_id = $_SESSION['fp_user_id'] ?? 0;
 
-    if (empty($email) || empty($_SESSION['fp_otp_verified'])) {
+    if ((empty($email) && empty($user_id)) || empty($_SESSION['fp_otp_verified'])) {
         $error = "Session expired. Please start again.";
         $_SESSION['fp_step'] = 'email';
         $step = 'email';
@@ -119,10 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_password'])) {
         } else {
             $hashed    = password_hash($new_pass, PASSWORD_DEFAULT);
             $email_esc = mysqli_real_escape_string($conn, $email);
-            $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE email='$email_esc' OR mobile='$email_esc'");
+            if ($user_id > 0) {
+                $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE id='$user_id'");
+            } else {
+                $upd = mysqli_query($conn, "UPDATE users SET password='$hashed' WHERE email='$email_esc' OR mobile='$email_esc' OR LOWER(email)=LOWER('$email_esc')");
+            }
 
             if ($upd) {
-                unset($_SESSION['fp_step'], $_SESSION['fp_email'],
+                unset($_SESSION['fp_step'], $_SESSION['fp_user_id'], $_SESSION['fp_email'],
                       $_SESSION['fp_name'], $_SESSION['fp_otp_verified']);
                 $step    = 'done';
                 $success = "Password reset successful! You can now login with your new password.";
