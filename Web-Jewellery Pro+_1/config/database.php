@@ -1,15 +1,44 @@
 <?php
-$host = 'localhost';
-$user = 'root';
-$password = '';
-$database = 'moti';
+$host     = getenv('DB_HOST') ?: '127.0.0.1';
+$user     = getenv('DB_USER') ?: 'root';
+$password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$database = getenv('DB_NAME') ?: 'moti';
 
+// Attempt connection: try 127.0.0.1 first (TCP/IP), then localhost fallback (socket)
+$hosts_to_try = array_unique([$host, '127.0.0.1', 'localhost']);
+$conn = false;
+$last_error = '';
 
+foreach ($hosts_to_try as $h) {
+    try {
+        $conn = @mysqli_connect($h, $user, $password, $database);
+        if ($conn) {
+            break;
+        }
+    } catch (Throwable $e) {
+        $last_error = $e->getMessage();
+    }
+}
 
-$conn = mysqli_connect($host, $user, $password, $database);
+if (!$conn) {
+    // If connection failed because database doesn't exist yet, try connecting without DB name and creating it
+    foreach ($hosts_to_try as $h) {
+        try {
+            $tmp_conn = @mysqli_connect($h, $user, $password);
+            if ($tmp_conn) {
+                mysqli_query($tmp_conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                mysqli_close($tmp_conn);
+                $conn = @mysqli_connect($h, $user, $password, $database);
+                if ($conn) break;
+            }
+        } catch (Throwable $e) {
+            $last_error = $e->getMessage();
+        }
+    }
+}
 
-if(!$conn) {
-die("Connection failed: " . mysqli_connect_error());
+if (!$conn) {
+    die("Database Connection failed: " . ($last_error ?: mysqli_connect_error()));
 }
 
 // Set timezone
