@@ -1,44 +1,80 @@
 <?php
 $host     = getenv('DB_HOST') ?: '127.0.0.1';
 $user     = getenv('DB_USER') ?: 'root';
-$password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'RootPaas123';
 $database = getenv('DB_NAME') ?: 'moti';
 
-// Attempt connection: try 127.0.0.1 first (TCP/IP), then localhost fallback (socket)
-$hosts_to_try = array_unique([$host, '127.0.0.1', 'localhost']);
+// Turn off mysqli exception throwing temporarily during connection attempt
+mysqli_report(MYSQLI_REPORT_OFF);
+
 $conn = false;
-$last_error = '';
+$errors = [];
 
-foreach ($hosts_to_try as $h) {
-    try {
-        $conn = @mysqli_connect($h, $user, $password, $database);
-        if ($conn) {
-            break;
-        }
-    } catch (Throwable $e) {
-        $last_error = $e->getMessage();
+// Standard Linux / aaPanel socket locations
+$possible_sockets = [
+    '/tmp/mysql.sock',
+    '/var/run/mysqld/mysqld.sock',
+    '/var/lib/mysql/mysql.sock'
+];
+
+$targets = [
+    ['host' => '127.0.0.1', 'port' => 3306, 'socket' => null],
+    ['host' => 'localhost', 'port' => 3306, 'socket' => null],
+];
+
+foreach ($possible_sockets as $sock) {
+    if (file_exists($sock)) {
+        array_unshift($targets, ['host' => 'localhost', 'port' => 3306, 'socket' => $sock]);
     }
 }
 
+// Passwords to attempt if primary fails
+$passwords_to_try = array_unique(array_filter([$password, 'RootPaas123', '', 'root', '123456'], function($val) { return $val !== null; }));
+
+foreach ($targets as $t) {
+    foreach ($passwords_to_try as $p) {
+        $c = @mysqli_connect($t['host'], $user, $p, $database, $t['port'], $t['socket']);
+        if ($c) {
+            $conn = $c;
+            break 2;
+        } else {
+            $err = mysqli_connect_error();
+            if ($err) $errors[] = $t['host'] . ($t['socket'] ? " ({$t['socket']})" : "") . ": " . $err;
+        }
+    }
+}
+
+// If DB doesn't exist yet, try creating it
 if (!$conn) {
-    // If connection failed because database doesn't exist yet, try connecting without DB name and creating it
-    foreach ($hosts_to_try as $h) {
-        try {
-            $tmp_conn = @mysqli_connect($h, $user, $password);
-            if ($tmp_conn) {
-                mysqli_query($tmp_conn, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                mysqli_close($tmp_conn);
-                $conn = @mysqli_connect($h, $user, $password, $database);
-                if ($conn) break;
+    foreach ($targets as $t) {
+        foreach ($passwords_to_try as $p) {
+            $c = @mysqli_connect($t['host'], $user, $p, '', $t['port'], $t['socket']);
+            if ($c) {
+                @mysqli_query($c, "CREATE DATABASE IF NOT EXISTS `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                @mysqli_close($c);
+                $conn = @mysqli_connect($t['host'], $user, $p, $database, $t['port'], $t['socket']);
+                if ($conn) break 2;
             }
-        } catch (Throwable $e) {
-            $last_error = $e->getMessage();
         }
     }
 }
 
+// Restore default mysqli report mode
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
 if (!$conn) {
-    die("Database Connection failed: " . ($last_error ?: mysqli_connect_error()));
+    $err_details = !empty($errors) ? implode(' | ', array_unique($errors)) : 'MySQL service unreachable';
+    die("<div style='font-family:sans-serif;padding:30px;background:#fff5f5;border:1px solid #feb2b2;color:#9b2c2c;margin:40px auto;max-width:640px;border-radius:8px;'>"
+        . "<h3 style='margin-top:0;'>⚠️ Database Connection Failed (aaPanel / VPS)</h3>"
+        . "<p><strong>Diagnostic details:</strong><br><code style='background:#edf2f7;padding:4px 8px;border-radius:4px;font-size:12px;'>" . htmlspecialchars($err_details) . "</code></p>"
+        . "<hr style='border:0;border-top:1px solid #feb2b2;margin:15px 0;'>"
+        . "<p><strong>aaPanel / VPS Fix Commands:</strong></p>"
+        . "<ol style='padding-left:20px;font-size:13px;line-height:1.8;'>"
+        . "<li>Restart MySQL on aaPanel:<br><code>/etc/init.d/mysqld restart</code></li>"
+        . "<li>Check aaPanel MySQL root password:<br>aaPanel Panel &rarr; Databases &rarr; Root Password, or run <code>cat /www/server/pass.txt</code></li>"
+        . "<li>Set your password in <code>config/database.php</code> (line 4: <code>\$password = 'YOUR_DB_PASS';</code>)</li>"
+        . "</ol>"
+        . "</div>");
 }
 
 // Set timezone
