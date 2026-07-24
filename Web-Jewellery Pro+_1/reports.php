@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'config/company_config.php';
 
 if(!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -434,9 +435,15 @@ $gst_summary = mysqli_fetch_assoc(mysqli_query($conn, "
     SELECT
         SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN 1 ELSE 0 END) as gst_count,
         SUM(CASE WHEN (gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0)) THEN 1 ELSE 0 END) as nongst_count,
-        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN total_amount ELSE 0 END) as gst_taxable_total,
+        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN (total_amount - COALESCE(gst_amount, 0)) ELSE 0 END) as gst_taxable_total,
         SUM(CASE WHEN (gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0)) THEN total_amount ELSE 0 END) as nongst_amt,
-        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN gst_amount ELSE 0 END) as actual_gst_collected
+        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN gst_amount ELSE 0 END) as actual_gst_collected,
+        SUM(CASE WHEN ((gst_type LIKE 'gst%' OR gst_amount > 0) AND NOT (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10))) THEN 1 ELSE 0 END) as gst_3_count,
+        SUM(CASE WHEN ((gst_type LIKE 'gst%' OR gst_amount > 0) AND NOT (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10))) THEN (total_amount - COALESCE(gst_amount, 0)) ELSE 0 END) as gst_3_taxable,
+        SUM(CASE WHEN ((gst_type LIKE 'gst%' OR gst_amount > 0) AND NOT (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10))) THEN gst_amount ELSE 0 END) as gst_3_amt,
+        SUM(CASE WHEN ((gst_type LIKE 'gst%' OR gst_amount > 0) AND (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10))) THEN 1 ELSE 0 END) as gst_18_count,
+        SUM(CASE WHEN ((gst_type LIKE 'gst%' OR gst_amount > 0) AND (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10))) THEN (total_amount - COALESCE(gst_amount, 0)) ELSE 0 END) as gst_18_taxable,
+        SUM(CASE WHEN ((gst_type LIKE 'gst%' OR gst_amount > 0) AND (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10))) THEN gst_amount ELSE 0 END) as gst_18_amt
     FROM invoices $gst_month_where
 "));
 
@@ -452,8 +459,10 @@ if($filter_from)   $where_clauses[] = "DATE(created_at) >= '$filter_from'";
 if($filter_to)     $where_clauses[] = "DATE(created_at) <= '$filter_to'";
 if($filter_name)   $where_clauses[] = "(customer_name LIKE '%$filter_name%' OR customer_mobile LIKE '%$filter_name%')";
 if($filter_status) $where_clauses[] = "payment_status = '$filter_status'";
-if($filter_gst === 'gst')     $where_clauses[] = "(gst_type LIKE 'gst%' OR gst_amount > 0)";
-if($filter_gst === 'non_gst') $where_clauses[] = "(gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0))";
+if($filter_gst === 'gst')       $where_clauses[] = "(gst_type LIKE 'gst%' OR gst_amount > 0)";
+if($filter_gst === 'gst_3')     $where_clauses[] = "((gst_type LIKE 'gst%' OR gst_amount > 0) AND NOT (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10)))";
+if($filter_gst === 'gst_18')    $where_clauses[] = "((gst_type LIKE 'gst%' OR gst_amount > 0) AND (gst_type = 'gst_18' OR (total_amount - gst_amount > 0 AND (gst_amount / (total_amount - gst_amount)) > 0.10)))";
+if($filter_gst === 'non_gst')   $where_clauses[] = "(gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0))";
 $where_sql = $where_clauses ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
 // customer_gstin column exists directly in invoices table
@@ -1047,56 +1056,89 @@ $logo_paths = ['logo.png', 'assets/images/radhey_shyam_logo.png', 'assets/images
             </div>
 
             <?php
-            $actual_gst = floatval($gst_summary['actual_gst_collected'] ?? 0);
-            $taxable    = floatval($gst_summary['gst_taxable_total'] ?? 0);
-            $cgst = $actual_gst / 2;
-            $sgst = $actual_gst / 2;
-            if($actual_gst <= 0 && $taxable > 0) {
-                $actual_gst = round($taxable * 0.03, 2);
-                $cgst = round($taxable * 0.015, 2);
-                $sgst = round($taxable * 0.015, 2);
-            }
+            $actual_gst   = floatval($gst_summary['actual_gst_collected'] ?? 0);
+            $taxable      = floatval($gst_summary['gst_taxable_total'] ?? 0);
+            $gst_3_amt    = floatval($gst_summary['gst_3_amt'] ?? 0);
+            $gst_3_taxable = floatval($gst_summary['gst_3_taxable'] ?? 0);
+            $cgst_3       = $gst_3_amt / 2;
+            $sgst_3       = $gst_3_amt / 2;
+
+            $gst_18_amt    = floatval($gst_summary['gst_18_amt'] ?? 0);
+            $gst_18_taxable = floatval($gst_summary['gst_18_taxable'] ?? 0);
+            $cgst_18       = $gst_18_amt / 2;
+            $sgst_18       = $gst_18_amt / 2;
+
+            $total_cgst = $actual_gst / 2;
+            $total_sgst = $actual_gst / 2;
+
             $month_label = $gst_month ? date('F Y', strtotime($gst_month.'-01')) : 'All Time';
             ?>
 
             <p class="text-xs mb-4" style="color:#7a4e0a;">📌 Showing data for: <strong style="color:#800020;"><?php echo $month_label; ?></strong></p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <!-- GST Card -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <!-- GST 3% Card -->
                 <div class="stat-card-gst p-5">
                     <div class="flex justify-between items-center mb-3">
-                        <span class="font-bold text-sm" style="color:#134e4a;">📄 GST Bills</span>
-                        <span class="text-2xl font-black" style="color:#0f766e;"><?php echo $gst_summary['gst_count']; ?> bills</span>
+                        <span class="font-bold text-sm" style="color:#134e4a;">📄 GST 3% Bills</span>
+                        <span class="text-xl font-black" style="color:#0f766e;"><?php echo intval($gst_summary['gst_3_count'] ?? 0); ?> bills</span>
                     </div>
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(20,184,166,0.2);">
                             <span style="color:#0d9488;">💰 Taxable Amount</span>
-                            <strong style="color:#134e4a;">₹<?php echo number_format($taxable,2); ?></strong>
+                            <strong style="color:#134e4a;">₹<?php echo number_format($gst_3_taxable,2); ?></strong>
                         </div>
                         <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(20,184,166,0.2);">
                             <span style="color:#0d9488;">📊 CGST (1.5%)</span>
-                            <strong style="color:#0f766e;">₹<?php echo number_format($cgst,2); ?></strong>
+                            <strong style="color:#0f766e;">₹<?php echo number_format($cgst_3,2); ?></strong>
                         </div>
                         <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(20,184,166,0.2);">
                             <span style="color:#0d9488;">📊 SGST (1.5%)</span>
-                            <strong style="color:#0f766e;">₹<?php echo number_format($sgst,2); ?></strong>
+                            <strong style="color:#0f766e;">₹<?php echo number_format($sgst_3,2); ?></strong>
                         </div>
                         <div class="flex justify-between py-2 px-3 rounded-xl mt-1" style="background:rgba(52,211,153,0.15);">
-                            <span class="font-bold" style="color:#134e4a;">✅ Total GST</span>
-                            <strong class="text-lg" style="color:#0f766e;">₹<?php echo number_format($actual_gst,2); ?></strong>
+                            <span class="font-bold" style="color:#134e4a;">✅ GST 3% Total</span>
+                            <strong class="text-lg" style="color:#0f766e;">₹<?php echo number_format($gst_3_amt,2); ?></strong>
                         </div>
                     </div>
                 </div>
+
+                <!-- GST 18% Card -->
+                <div class="stat-card-gst p-5" style="background: linear-gradient(145deg, #eff6ff, #dbeafe); border-color:#93c5fd;">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-bold text-sm" style="color:#1e40af;">📄 GST 18% Bills</span>
+                        <span class="text-xl font-black" style="color:#1d4ed8;"><?php echo intval($gst_summary['gst_18_count'] ?? 0); ?> bills</span>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(59,130,246,0.2);">
+                            <span style="color:#2563eb;">💰 Taxable Amount</span>
+                            <strong style="color:#1e40af;">₹<?php echo number_format($gst_18_taxable,2); ?></strong>
+                        </div>
+                        <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(59,130,246,0.2);">
+                            <span style="color:#2563eb;">📊 CGST (9%)</span>
+                            <strong style="color:#1d4ed8;">₹<?php echo number_format($cgst_18,2); ?></strong>
+                        </div>
+                        <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(59,130,246,0.2);">
+                            <span style="color:#2563eb;">📊 SGST (9%)</span>
+                            <strong style="color:#1d4ed8;">₹<?php echo number_format($sgst_18,2); ?></strong>
+                        </div>
+                        <div class="flex justify-between py-2 px-3 rounded-xl mt-1" style="background:rgba(96,165,250,0.2);">
+                            <span class="font-bold" style="color:#1e40af;">✅ GST 18% Total</span>
+                            <strong class="text-lg" style="color:#1d4ed8;">₹<?php echo number_format($gst_18_amt,2); ?></strong>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Non-GST Card -->
                 <div class="stat-card-nongst p-5">
                     <div class="flex justify-between items-center mb-3">
                         <span class="font-bold text-sm" style="color:#475569;">📋 Non-GST Bills</span>
-                        <span class="text-2xl font-black" style="color:#334155;"><?php echo $gst_summary['nongst_count']; ?> bills</span>
+                        <span class="text-xl font-black" style="color:#334155;"><?php echo intval($gst_summary['nongst_count'] ?? 0); ?> bills</span>
                     </div>
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between py-1" style="border-bottom:1px solid #e2e8f0;">
                             <span style="color:#64748b;">💰 Total Sale Amount</span>
-                            <strong style="color:#334155;">₹<?php echo number_format($gst_summary['nongst_amt'],2); ?></strong>
+                            <strong style="color:#334155;">₹<?php echo number_format($gst_summary['nongst_amt'] ?? 0, 2); ?></strong>
                         </div>
                         <div class="flex justify-between py-1" style="border-bottom:1px solid #e2e8f0;">
                             <span style="color:#64748b;">📊 Tax Rate</span>
@@ -1113,8 +1155,8 @@ $logo_paths = ['logo.png', 'assets/images/radhey_shyam_logo.png', 'assets/images
             <div class="gst-total-box">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <p class="font-bold text-sm" style="color:#0d9488;">🏛️ Total GST Payable to Govt — <?php echo $month_label; ?></p>
-                        <p class="text-xs mt-1" style="color:#14b8a6;">CGST ₹<?php echo number_format($cgst,2); ?> + SGST ₹<?php echo number_format($sgst,2); ?></p>
+                        <p class="font-bold text-sm" style="color:#0d9488;">🏛️ Total Combined GST Payable to Govt (3% + 18%) — <?php echo $month_label; ?></p>
+                        <p class="text-xs mt-1" style="color:#14b8a6;">CGST ₹<?php echo number_format($total_cgst,2); ?> + SGST ₹<?php echo number_format($total_sgst,2); ?></p>
                     </div>
                     <p class="text-2xl font-black" style="color:#0f766e;">₹<?php echo number_format($actual_gst,2); ?></p>
                 </div>
@@ -1156,8 +1198,10 @@ $logo_paths = ['logo.png', 'assets/images/radhey_shyam_logo.png', 'assets/images
                 <div>
                     <label class="filter-label">🧾 GST Type</label>
                     <select name="filter_gst" class="jewel-input w-full">
-                        <option value="" <?php if(!$filter_gst) echo 'selected'; ?>>All</option>
-                        <option value="gst"     <?php if($filter_gst==='gst')     echo 'selected'; ?>>📄 GST (3%)</option>
+                        <option value=""       <?php if(!$filter_gst) echo 'selected'; ?>>All Bills</option>
+                        <option value="gst_3"   <?php if($filter_gst==='gst_3')   echo 'selected'; ?>>📄 GST (3%)</option>
+                        <option value="gst_18"  <?php if($filter_gst==='gst_18')  echo 'selected'; ?>>📄 GST (18%)</option>
+                        <option value="gst"     <?php if($filter_gst==='gst')     echo 'selected'; ?>>📄 All GST (3% &amp; 18%)</option>
                         <option value="non_gst" <?php if($filter_gst==='non_gst') echo 'selected'; ?>>📋 Non-GST</option>
                     </select>
                 </div>
