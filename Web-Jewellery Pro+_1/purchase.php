@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS purchase_entries (
     supplier_email  VARCHAR(100),
 
     -- Buyer (auto-filled)
-    buyer_name      VARCHAR(200) DEFAULT 'MOTI JEWELLERS',
+    buyer_name      VARCHAR(200) DEFAULT 'RADHE SHYAM JEWELLERS',
     buyer_addr      VARCHAR(500),
     buyer_gstin     VARCHAR(20),
     buyer_pan       VARCHAR(20),
@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_purchase'])) {
     $smob   = $conn->real_escape_string(trim($_POST['supplier_mobile'] ?? ''));
     $semail = $conn->real_escape_string(trim($_POST['supplier_email'] ?? ''));
 
-    $bname  = $conn->real_escape_string(trim($_POST['buyer_name'] ?? 'MOTI JEWELLERS'));
+    $bname  = $conn->real_escape_string(trim($_POST['buyer_name'] ?? 'RADHE SHYAM JEWELLERS'));
     $baddr  = $conn->real_escape_string(trim($_POST['buyer_addr'] ?? ''));
     $bgstin = $conn->real_escape_string(trim($_POST['buyer_gstin'] ?? ''));
     $bpan   = $conn->real_escape_string(trim($_POST['buyer_pan'] ?? ''));
@@ -251,7 +251,7 @@ $unit_defaults = ['Gold'=>'gm','Silver'=>'gm','Diamond'=>'ct','Platinum'=>'gm'];
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="author" content="MANU GUPTA">
-<title>Purchase Entry | MOTI JEWELLERS</title>
+<title>Purchase Entry | RADHE SHYAM JEWELLERS</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -337,12 +337,12 @@ nav.nav-gold span{color:#fff!important;}
 <div class="sidebar" id="mainSidebar">
     <div class="sidebar-logo">
         <?php
-        $logo_paths=['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
+        $logo_paths=['logo.png', 'assets/images/radhey_shyam_logo.png', 'assets/images/radhe_shyam_logo.jpg', 'images/radhey_shyam_logo.png', 'radhey_shyam_logo.png', 'radhey shyam logo.png'];
         $found=false;
         foreach($logo_paths as $p){if(file_exists($p)){echo '<img src="'.$p.'" alt="Logo">';$found=true;break;}}
         if(!$found) echo '<i class="fas fa-gem" style="color:#fff;font-size:30px;"></i>';
         ?>
-        <div class="sidebar-logo-text"><h2>MOTI JEWELLERS</h2><p>Premium Since 2026</p></div>
+        <div class="sidebar-logo-text"><h2>RADHE SHYAM JEWELLERS</h2><p>Premium Since 2026</p></div>
     </div>
     <nav class="sidebar-nav">
         <div class="sidebar-section-label">Main Menu</div>
@@ -350,9 +350,6 @@ nav.nav-gold span{color:#fff!important;}
         <a href="billing.php"><i class="fas fa-receipt"></i> BILLING</a>
         <a href="stock.php"><i class="fas fa-boxes"></i> STOCK</a>
         <a href="customers.php"><i class="fas fa-users"></i> CUSTOMERS</a>
-        <a href="sanchari_dashboard.php">
-            <i class="fas fa-piggy-bank"></i> SANCHAY SCHEME
-        </a>
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Analytics</div>
         <a href="reports.php"><i class="fas fa-chart-bar"></i> REPORTS</a>
@@ -507,7 +504,7 @@ nav.nav-gold span{color:#fff!important;}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
             <label class="field-label">Buyer Name</label>
-            <input name="buyer_name" class="form-input" value=" MOTI JEWELLERS">
+            <input name="buyer_name" class="form-input" value=" RADHE SHYAM JEWELLERS">
         </div>
         <div>
             <label class="field-label">GSTIN</label>
@@ -730,7 +727,7 @@ nav.nav-gold span{color:#fff!important;}
 </div><!-- /container -->
 <footer style="background:linear-gradient(0deg,#f5e6c8,#fdf6e3);border-top:2px solid #d68b16;padding:20px;margin-top:40px;text-align:center;">
     <p class="text-xs" style="color:#7a4e0a;">
-        &copy; 2026 MOTI JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
+        &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
         Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
     </p>
 </footer>
@@ -1031,7 +1028,7 @@ function generatePDF(){
     doc.setTextColor(...white);
     doc.setFont('helvetica','bold');
     doc.setFontSize(18);
-    doc.text('MOTI JEWELLERS',pw/2,11,{align:'center'});
+    doc.text('RADHE SHYAM JEWELLERS',pw/2,11,{align:'center'});
     doc.setFontSize(8);
     doc.setFont('helvetica','normal');
     doc.text('Purchase Tax Invoice',pw/2,18,{align:'center'});
@@ -1100,7 +1097,7 @@ function generatePDF(){
 
     let by=y+13;
     doc.setFont('helvetica','bold');doc.setFontSize(8);
-    doc.text(bname||'MOTI JEWELLERS',bx,by);by+=5;
+    doc.text(bname||'RADHE SHYAM JEWELLERS',bx,by);by+=5;
     doc.setFont('helvetica','normal');doc.setFontSize(7);
     if(baddr){const ls=doc.splitTextToSize(baddr,colW-6);doc.text(ls,bx,by);by+=ls.length*4;}
     if(bgstin){doc.setFont('helvetica','bold');doc.text('GSTIN: ',bx,by);doc.setFont('helvetica','normal');doc.text(bgstin,bx+14,by);by+=4.5;}
@@ -1205,7 +1202,7 @@ function generatePDF(){
     // Signature
     doc.setFillColor(...lgray);doc.rect(pw-ml-55,y,55,20,'F');
     doc.setTextColor(...dark);doc.setFont('helvetica','bold');doc.setFontSize(8);
-    doc.text('For MOTI JEWELLERS',pw-ml-52,y+7);
+    doc.text('For RADHE SHYAM JEWELLERS',pw-ml-52,y+7);
     doc.setFont('helvetica','normal');doc.setFontSize(7);
     doc.text('Authorised Signatory',pw-ml-48,y+17);
 

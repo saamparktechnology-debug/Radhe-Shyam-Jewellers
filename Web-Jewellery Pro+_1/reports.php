@@ -432,11 +432,11 @@ $gst_month = mysqli_real_escape_string($conn, $_GET['gst_month'] ?? date('Y-m'))
 $gst_month_where = $gst_month ? "WHERE DATE_FORMAT(created_at,'%Y-%m') = '$gst_month'" : '';
 $gst_summary = mysqli_fetch_assoc(mysqli_query($conn, "
     SELECT
-        SUM(CASE WHEN gst_type LIKE 'gst%'  THEN 1 ELSE 0 END) as gst_count,
-        SUM(CASE WHEN gst_type NOT LIKE 'gst%' THEN 1 ELSE 0 END) as nongst_count,
-        SUM(CASE WHEN gst_type LIKE 'gst%'  THEN total_amount ELSE 0 END) as gst_taxable_total,
-        SUM(CASE WHEN gst_type NOT LIKE 'gst%' THEN total_amount ELSE 0 END) as nongst_amt,
-        SUM(CASE WHEN gst_type LIKE 'gst%'  THEN gst_amount   ELSE 0 END) as actual_gst_collected
+        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN 1 ELSE 0 END) as gst_count,
+        SUM(CASE WHEN (gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0)) THEN 1 ELSE 0 END) as nongst_count,
+        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN total_amount ELSE 0 END) as gst_taxable_total,
+        SUM(CASE WHEN (gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0)) THEN total_amount ELSE 0 END) as nongst_amt,
+        SUM(CASE WHEN (gst_type LIKE 'gst%' OR gst_amount > 0) THEN gst_amount ELSE 0 END) as actual_gst_collected
     FROM invoices $gst_month_where
 "));
 
@@ -452,8 +452,8 @@ if($filter_from)   $where_clauses[] = "DATE(created_at) >= '$filter_from'";
 if($filter_to)     $where_clauses[] = "DATE(created_at) <= '$filter_to'";
 if($filter_name)   $where_clauses[] = "(customer_name LIKE '%$filter_name%' OR customer_mobile LIKE '%$filter_name%')";
 if($filter_status) $where_clauses[] = "payment_status = '$filter_status'";
-if($filter_gst === 'gst')     $where_clauses[] = "gst_type LIKE 'gst%'";
-if($filter_gst === 'non_gst') $where_clauses[] = "gst_type NOT LIKE 'gst%'";
+if($filter_gst === 'gst')     $where_clauses[] = "(gst_type LIKE 'gst%' OR gst_amount > 0)";
+if($filter_gst === 'non_gst') $where_clauses[] = "(gst_type NOT LIKE 'gst%' AND (gst_amount IS NULL OR gst_amount = 0))";
 $where_sql = $where_clauses ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
 // customer_gstin column exists directly in invoices table
@@ -464,14 +464,14 @@ while($r = mysqli_fetch_assoc($bills_result)) $bills_rows[] = $r;
 $total_bills_amount = array_sum(array_column($bills_rows, 'total_amount'));
 $total_bills_count  = count($bills_rows);
 
-$logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
+$logo_paths = ['logo.png', 'assets/images/radhey_shyam_logo.png', 'assets/images/radhe_shyam_logo.jpg', 'images/radhey_shyam_logo.png', 'radhey_shyam_logo.png', 'radhey shyam logo.png'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Reports - MOTI JEWELLERS</title>
+    <title>Reports - RADHE SHYAM JEWELLERS</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -675,7 +675,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
         }
     }
 
-    const texts = ["MOTI JEWELLERS"];
+    const texts = ["RADHE SHYAM JEWELLERS"];
     let textIndex = 0, charIndex = 0, isDeleting = false, typingSpeed = 100;
 
     function typeEffect() {
@@ -744,7 +744,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
             
             
             <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
-                <img src="logo.png" alt="MOTI JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
+                <img src="logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
 
@@ -781,7 +781,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
         if(!$logo_found) echo '<i class="fas fa-gem" style="color:#fff;font-size:30px;flex-shrink:0;"></i>';
         ?>
         <div class="sidebar-logo-text">
-            <h2>MOTI JEWELLERS</h2>
+            <h2>RADHE SHYAM JEWELLERS</h2>
             <p>Premium Since 2026</p>
         </div>
     </div>
@@ -792,9 +792,6 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
         <a href="billing.php"><i class="fas fa-receipt"></i> BILLING</a>
         <a href="stock.php"><i class="fas fa-boxes"></i> STOCK</a>
         <a href="customers.php"><i class="fas fa-users"></i> CUSTOMERS</a>
-        <a href="sanchari_dashboard.php">
-            <i class="fas fa-piggy-bank"></i> SANCHAY SCHEME
-        </a>
 
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Analytics</div>
@@ -1175,9 +1172,9 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
                 <span class="chip chip-yellow">Total Bills: <strong><?php echo $total_bills_count; ?></strong></span>
                 <span class="chip chip-green">Total Amount: <strong>₹<?php echo number_format($total_bills_amount,2); ?></strong></span>
                 <?php
-                $gst_filtered    = count(array_filter($bills_rows, fn($b)=>$b['gst_type']==='gst'));
-                $nongst_filtered = count(array_filter($bills_rows, fn($b)=>$b['gst_type']!=='gst'));
-                $total_gst_collected = array_sum(array_column(array_filter($bills_rows, fn($b)=>$b['gst_type']==='gst'), 'gst_amount'));
+                $gst_filtered    = count(array_filter($bills_rows, fn($b)=>(strpos($b['gst_type'], 'gst') === 0 || floatval($b['gst_amount']) > 0)));
+                $nongst_filtered = count(array_filter($bills_rows, fn($b)=>(strpos($b['gst_type'], 'gst') !== 0 && floatval($b['gst_amount']) <= 0)));
+                $total_gst_collected = array_sum(array_column(array_filter($bills_rows, fn($b)=>(strpos($b['gst_type'], 'gst') === 0 || floatval($b['gst_amount']) > 0)), 'gst_amount'));
                 $total_cgst = round($total_gst_collected/2, 2);
                 $total_sgst = round($total_gst_collected/2, 2);
                 ?>
@@ -1243,7 +1240,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
                             <?php echo $balance>0 ? '₹'.number_format($balance,2) : '—'; ?>
                         </td>
                         <td class="text-center">
-                            <?php if(strpos($bill['gst_type'], 'gst') === 0): ?>
+                            <?php if(strpos($bill['gst_type'], 'gst') === 0 || floatval($bill['gst_amount']) > 0): ?>
                                 <span style="color:#0d9488;font-weight:700;font-size:11px;">📄 GST</span>
                                 <?php if($gst_amt>0): ?>
                                     <div style="font-size:9px;color:#14b8a6;">Total: ₹<?php echo number_format($gst_amt,2); ?></div>
@@ -1279,7 +1276,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
 
     <footer>
         <p class="text-xs" style="color:#7a4e0a;">
-            &copy; 2026 MOTI JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
+            &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
             Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
         </p>
     </footer>
@@ -1424,7 +1421,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
 
         // Sheet 1 — All Bills
         const aoa1 = [];
-        aoa1.push(['💎 MOTI JEWELLERS', '', '', '', '', '', '', '', '', '', '', '']);
+        aoa1.push(['💎 RADHE SHYAM JEWELLERS', '', '', '', '', '', '', '', '', '', '', '']);
         aoa1.push(['All Bills Report — Generated: ' + today, '', '', '', '', '', '', '', '', '', '', '']);
         aoa1.push([]);
         aoa1.push(['Total Bills', billsData.length, '', 'Total Amount', inrFmt(totalAmt), '', 'Total GST Collected', inrFmt(totalGST), '', 'Balance Due', inrFmt(totalBalance), '']);
@@ -1458,7 +1455,7 @@ $logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'
 
         // Sheet 2 — Payment Summary
         const aoa2 = [];
-        aoa2.push(['💎 MOTI JEWELLERS — Payment Summary']);
+        aoa2.push(['💎 RADHE SHYAM JEWELLERS — Payment Summary']);
         aoa2.push(['Generated: ' + today]);
         aoa2.push([]);
         aoa2.push(['Category', 'Count', 'Amount (₹)']);

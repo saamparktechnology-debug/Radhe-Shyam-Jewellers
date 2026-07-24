@@ -317,7 +317,7 @@ $create_purchase_entries = "CREATE TABLE IF NOT EXISTS purchase_entries (
     supplier_state_code VARCHAR(5),
     supplier_mobile VARCHAR(20),
     supplier_email  VARCHAR(100),
-    buyer_name      VARCHAR(200) DEFAULT 'MOTI JEWELLERS',
+    buyer_name      VARCHAR(200) DEFAULT 'RADHE SHYAM JEWELLERS',
     buyer_addr      VARCHAR(500),
     buyer_gstin     VARCHAR(20),
     buyer_pan       VARCHAR(20),

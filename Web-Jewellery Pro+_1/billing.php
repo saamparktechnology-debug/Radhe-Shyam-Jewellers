@@ -73,13 +73,13 @@ if(isset($_GET['action']) && $_GET['action'] === 'send_reminder') {
         exit();
     }
 
-    $subject = 'Payment Reminder from MOTI JEWELLERS';
+    $subject = 'Payment Reminder from RADHE SHYAM JEWELLERS';
     $invoice_text = $invoice_no ? 'Invoice No: ' . htmlspecialchars($invoice_no) . '<br>' : '';
     $message = '<p>Dear ' . htmlspecialchars($customer_name) . ',</p>' .
                '<p>This is a reminder that an amount of <strong>&#8377;' . number_format($balance_amount, 2) . '</strong> is still due.' .
                ($invoice_no ? ' Please refer to ' . htmlspecialchars($invoice_no) . '.' : '') . '</p>' .
                '<p>Please make the remaining payment at your earliest convenience.</p>' .
-               '<p>Thank you,<br>MOTI JEWELLERS</p>';
+               '<p>Thank you,<br>RADHE SHYAM JEWELLERS</p>';
     $sendResult = sendSMTPMail($customer_email, $subject, $message);
     _sr_log(['after_sendSMTPMail','sendResult'=>$sendResult]);
     if(!empty($sendResult['success'])) {
@@ -184,6 +184,15 @@ if($chk_due_date && mysqli_num_rows($chk_due_date) == 0) {
     mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN due_date DATE NULL");
 }
 
+// Ensure gst_type column is VARCHAR(50) so gst_3, gst_18, gst, non_gst are all supported
+$chk_gst_type = mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'gst_type'");
+if($chk_gst_type && mysqli_num_rows($chk_gst_type) > 0) {
+    $row_gst_type = mysqli_fetch_assoc($chk_gst_type);
+    if(stripos($row_gst_type['Type'] ?? '', 'enum') !== false) {
+        mysqli_query($conn, "ALTER TABLE invoices MODIFY COLUMN gst_type VARCHAR(50) DEFAULT 'non_gst'");
+    }
+}
+
 if(!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -243,7 +252,7 @@ $last_upi_paid = 0;
 $last_is_split = 0;
 $last_old_gold_amount = 0;
 
-$logo_paths = ['logo.png','images/radhey_shyam_logo.png','radhey_shyam_logo.png'];
+$logo_paths = ['logo.png', 'assets/images/radhey_shyam_logo.png', 'assets/images/radhe_shyam_logo.jpg', 'images/radhey_shyam_logo.png', 'radhey_shyam_logo.png', 'radhey shyam logo.png'];
 
 // Fetch products from DB
 $all_products = [];
@@ -337,6 +346,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
     $customer_address = mysqli_real_escape_string($conn, $_POST['customer_address'] ?? '');
     $customer_email   = mysqli_real_escape_string($conn, $_POST['customer_email'] ?? '');
     $raw_gst_type     = strtolower(trim($_POST['gst_type'] ?? 'non_gst'));
+    if ($raw_gst_type === 'non_gst' && $gst_amount > 0) {
+        $raw_gst_type = 'gst';
+    }
     $gst_type         = mysqli_real_escape_string($conn, $raw_gst_type);
     $subtotal         = floatval($_POST['subtotal']);
     $making_charge    = floatval($_POST['making_charge'] ?? 0);
@@ -567,7 +579,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_invoice'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Billing - MOTI JEWELLERS</title>
+    <title>Billing - RADHE SHYAM JEWELLERS</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/theme.css">
@@ -779,16 +791,10 @@ window.addEventListener('load', function() {
 
 <!-- Loading Overlay -->
 <div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;justify-content:center;align-items:center;overflow:hidden;transition:opacity 0.6s ease,visibility 0.6s ease;background:radial-gradient(ellipse at 50% 60%, #1a0a00 0%, #0d0500 100%);">
-    <!-- <div style="position:absolute;top:28px;left:28px;color:rgba(214,139,22,0.18);font-size:72px;animation:ornFloat 4s ease-in-out infinite;">&#10022;</div>
-    <div style="position:absolute;top:28px;right:28px;color:rgba(214,139,22,0.18);font-size:72px;animation:ornFloat 4s ease-in-out infinite 1s;">&#10022;</div>
-    <div style="position:absolute;bottom:28px;left:28px;color:rgba(214,139,22,0.18);font-size:72px;animation:ornFloat 4s ease-in-out infinite 2s;">&#10022;</div>
-    <div style="position:absolute;bottom:28px;right:28px;color:rgba(214,139,22,0.18);font-size:72px;animation:ornFloat 4s ease-in-out infinite 3s;">&#10022;</div> -->
     <div style="position:relative;z-index:10;text-align:center;">
-                <div style="position:relative;width:120px;height:120px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
-            
-            
+        <div style="position:relative;width:120px;height:120px;margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
             <div style="width:120px;height:120px;background:transparent;animation:gemGlowPulse 1.5s ease-in-out infinite;">
-                <img src="logo.png" alt="MOTI JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
+                <img src="logo.png" alt="RADHE SHYAM JEWELLERS Logo" style="width:100%;height:100%;object-fit:contain;display:block;">
             </div>
         </div>
         <div style="display:flex;gap:9px;justify-content:center;">
@@ -815,7 +821,7 @@ window.addEventListener('load', function() {
         if(!$logo_found) echo '<i class="fas fa-gem" style="color:#fff;font-size:30px;flex-shrink:0;"></i>';
         ?>
         <div class="sidebar-logo-text">
-            <h2>MOTI JEWELLERS</h2>
+            <h2>RADHE SHYAM JEWELLERS</h2>
             <p>Premium Since 2026</p>
         </div>
     </div>
@@ -833,9 +839,6 @@ window.addEventListener('load', function() {
         </a>
         <a href="customers.php">
             <i class="fas fa-users"></i> CUSTOMERS
-        </a>
-        <a href="sanchari_dashboard.php">
-            <i class="fas fa-piggy-bank"></i> SANCHAY SCHEME
         </a>
 
         <div class="sidebar-divider"></div>
@@ -1485,6 +1488,7 @@ function submitPayment() {
                     <!-- Hidden form fields -->
                     <input type="hidden" name="subtotal" id="hiddenSubtotal" value="0">
                     <input type="hidden" name="gst_amount" id="hiddenGst" value="0">
+                    <input type="hidden" name="gst_type" id="hiddenGstType" value="non_gst">
                     <input type="hidden" name="total_amount" id="hiddenTotal" value="0">
                     <input type="hidden" name="items" id="hiddenItems" value="[]">
                     <input type="hidden" name="making_charge" id="hiddenMakingCharge" value="0">
@@ -1777,7 +1781,7 @@ function submitPayment() {
 </div><!-- /container -->
     <footer style="background:linear-gradient(0deg,#f5e6c8,#fdf6e3);border-top:2px solid #d68b16;padding:20px;margin-top:40px;text-align:center;">
         <p class="text-xs" style="color:#7a4e0a;">
-            &copy; 2026 MOTI JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
+            &copy; 2026 RADHE SHYAM JEWELLERS &nbsp;|&nbsp; CRAFTED WITH ELEGANCE &nbsp;|&nbsp;
             Developed by <a href="https://saamparktechnology.com/" target="_blank" style="text-decoration:underline;color:#800020;font-weight:700;">Saampark Technology</a>
         </p>
     </footer>
@@ -2678,19 +2682,22 @@ function calculateTotal() {
     const discount  = items.reduce((sum, item) => sum + (item.discount || 0), 0);
     
     let cgst = 0, sgst = 0;
-    const gstinEl = document.getElementById('customerGstin');
-    const hasGstin = gstinEl && gstinEl.value.trim().length > 0;
-    
-    if (hasGstin) {
-        items.forEach(item => {
-            if (item.gst_type === 'gst_3') {
-                cgst += item.total * 0.015;
-                sgst += item.total * 0.015;
-            } else if (item.gst_type === 'gst_18') {
-                cgst += item.total * 0.09;
-                sgst += item.total * 0.09;
-            }
-        });
+    let computedGstType = 'non_gst';
+
+    items.forEach(item => {
+        if (item.gst_type === 'gst_3') {
+            cgst += item.total * 0.015;
+            sgst += item.total * 0.015;
+            if (computedGstType === 'non_gst') computedGstType = 'gst_3';
+        } else if (item.gst_type === 'gst_18') {
+            cgst += item.total * 0.09;
+            sgst += item.total * 0.09;
+            if (computedGstType === 'non_gst' || computedGstType === 'gst_3') computedGstType = 'gst_18';
+        }
+    });
+
+    if (cgst + sgst > 0 && computedGstType === 'non_gst') {
+        computedGstType = 'gst';
     }
 
     const oldGoldEl = document.getElementById('oldGoldAmountInput');
@@ -2716,6 +2723,7 @@ function calculateTotal() {
     
     document.getElementById('hiddenSubtotal').value  = subtotal;
     document.getElementById('hiddenGst').value       = cgst + sgst;
+    if(document.getElementById('hiddenGstType')) document.getElementById('hiddenGstType').value = computedGstType;
     document.getElementById('hiddenTotal').value     = grand;
     document.getElementById('hiddenItems').value     = JSON.stringify(buildItemsForSubmit());
     document.getElementById('hiddenMakingCharge').value = makingAmt;
