@@ -982,7 +982,7 @@ if($is_logged_in) {
                     <i class="fas fa-user-circle" style="color:#ffd700;"></i>
                     <?php echo htmlspecialchars($_SESSION['user_name']); ?>
                 </span>
-                <a href="logout.php" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 hidden sm:inline-flex items-center">
+                <a href="logout.php" title="Logout" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 inline-flex items-center">
                     <i class="fas fa-sign-out-alt mr-1"></i> Logout
                 </a>
 

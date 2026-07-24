@@ -384,12 +384,18 @@ nav.nav-gold span{color:#fff!important;}
 <!-- TOPNAV -->
 <nav class="nav-gold shadow-lg sticky top-0 z-50" style="margin-left:240px;">
     <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-        <h1 style="color:#fff;font-family:'Poppins',serif;font-size:18px;font-weight:700;">
+        <h1 style="color:#fff;font-family:'Poppins',serif;font-size:16px;font-weight:700;">
             <i class="fas fa-shopping-cart mr-2"></i>Purchase Entry
         </h1>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
             <?php if($is_logged_in): ?>
-            <span class="text-sm font-medium" style="color:#fff;"><i class="fas fa-user mr-1"></i><?=htmlspecialchars($_SESSION['user_name'])?></span>
+            <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-1">
+                <i class="fas fa-user-circle" style="color:#ffd700;"></i>
+                <span><?=htmlspecialchars($_SESSION['user_name'])?></span>
+            </span>
+            <a href="logout.php" title="Logout" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 inline-flex items-center gap-1">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
             <?php endif; ?>
             <div class="mobile-burger" style="display:none;">
                 <div class="burger-menu" id="burgerMenu" onclick="toggleSidebar()">

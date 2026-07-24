@@ -920,14 +920,15 @@ function filterDueTable(query) {
             </div>
 
             <!-- Right Side -->
-            <div class="ml-auto flex items-center gap-4">
+            <div class="ml-auto flex items-center gap-3">
                 <?php if($is_logged_in): ?>
-                <span class="text-sm font-medium text-white flex items-center">
-                    <svg width="16" height="16" viewBox="0 0 448 512" aria-hidden="true" focusable="false" style="margin-right:8px;display:inline-block;color:inherit;">
-                        <path fill="currentColor" d="M313.6 304c-28.7 14.1-61.9 24-97.6 24s-68.9-9.9-97.6-24C53.6 330.4 0 404.7 0 496h448c0-91.3-53.6-165.6-134.4-192zM224 256a128 128 0 1 0 0-256 128 128 0 0 0 0 256z"></path>
-                    </svg>
+                <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-1">
+                    <i class="fas fa-user-circle" style="color:#ffd700;"></i>
                     <span><?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
                 </span>
+                <a href="logout.php" title="Logout" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 inline-flex items-center gap-1">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
                 <?php else: ?>
                 <a href="login.php" class="text-sm font-medium text-white hover:opacity-80">
                     <i class="fas fa-sign-in-alt mr-1"></i> LOGIN

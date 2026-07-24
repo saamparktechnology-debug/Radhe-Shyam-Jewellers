@@ -893,10 +893,15 @@ window.addEventListener('load', function() {
                     <i class="fas fa-receipt mr-2"></i>Billing
                 </span>
             </div>
-            <span class="text-sm font-medium text-white">
-                <i class="fas fa-user mr-1"></i>
-                <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-            </span>
+            <div class="flex items-center gap-3">
+                <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-1">
+                    <i class="fas fa-user-circle" style="color:#ffd700;"></i>
+                    <span><?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
+                </span>
+                <a href="logout.php" title="Logout" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 inline-flex items-center gap-1">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
         </div>
     </div>
 </nav>

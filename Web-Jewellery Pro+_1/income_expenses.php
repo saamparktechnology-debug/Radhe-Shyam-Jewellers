@@ -409,17 +409,23 @@ $logo_paths = ['assets/images/radhey_shyam_logo.png','images/radhey_shyam_logo.p
 
 <!-- ========== NAVBAR ========== -->
 <nav class="nav-gold shadow-lg sticky top-0 z-50" style="margin-left:240px;">
-    <div class="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+    <div class="container mx-auto px-4 sm:px-6 py-3">
         <div class="flex justify-between items-center">
-            <div class="ml-auto flex items-center gap-4">
-                <span class="text-sm font-medium text-white hidden sm:inline">
-                    <i class="fas fa-user mr-1"></i><?php echo htmlspecialchars($_SESSION['user_name']); ?>
-                </span>
+            <div class="flex items-center gap-2">
                 <div class="mobile-burger" style="display:none;">
                     <div class="burger-menu" id="burgerMenu" onclick="toggleSidebar()">
                         <span></span><span></span><span></span>
                     </div>
                 </div>
+            </div>
+            <div class="ml-auto flex items-center gap-3">
+                <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-1">
+                    <i class="fas fa-user-circle" style="color:#ffd700;"></i>
+                    <span><?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
+                </span>
+                <a href="logout.php" title="Logout" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all border border-red-400/40 inline-flex items-center gap-1">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
             </div>
         </div>
     </div>
