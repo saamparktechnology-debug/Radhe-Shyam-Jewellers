@@ -278,7 +278,8 @@ if ($chk_qty && mysqli_num_rows($chk_qty) > 0) {
 // Always ensure required admin accounts exist with exact password hash for 123456
 $admin_pass_hash = password_hash('123456', PASSWORD_DEFAULT);
 $required_admins = [
-    ['motijewellers9635985848@gmail.com', '9635985848', 'Moti Admin'],
+    ['subhapatra169@gmail.com', '9635985848', 'Subha Patra Admin'],
+    ['motijewellers9635985848@gmail.com', '9635985849', 'Moti Admin'],
     ['saamparktechnology@gmail.com', '8617536679', 'Saampark Admin'],
     ['hiisupriya@gmail.com', '9876543210', 'Supriya Admin']
 ];
